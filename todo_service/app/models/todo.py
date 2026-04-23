@@ -1,7 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 from todo_service.app.database import Base
-from datetime import datetime
 
 
 class TodoItem(Base):
@@ -14,8 +13,8 @@ class TodoItem(Base):
     completed = Column(Boolean, default=False)
     priority = Column(Integer, default=0)  # 0=low, 1=medium, 2=high
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Зв'язок з користувачем
     owner = relationship("User", back_populates="todos")

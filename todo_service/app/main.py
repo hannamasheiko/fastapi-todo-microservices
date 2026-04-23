@@ -1,12 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from todo_service.app.routes import api_router
-from todo_service.app.database import Base, engine
 from todo_service.app.config import settings
 from todo_service.app.services.cache_service import cache_service
 
-# Створюємо таблиці (у продакшені це робить Alembic)
-Base.metadata.create_all(bind=engine)
 
 # Ініціалізуємо FastAPI
 app = FastAPI(
@@ -18,7 +15,12 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
