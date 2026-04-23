@@ -1,7 +1,7 @@
 import json
 import logging
-from app.services.rabbitmq_consumer import RabbitMQConsumer
-from app.storage import notifications_store
+from notification_service.app.services.rabbitmq_consumer import RabbitMQConsumer
+from notification_service.app.storage import notifications_store
 
 logger = logging.getLogger(__name__)
 

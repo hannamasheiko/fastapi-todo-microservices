@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
-from app.shemas import NotificationSchema
+from notification_service.app.shemas import NotificationSchema
 from typing import List
 from datetime import datetime
-from app.storage import notifications_store
+from notification_service.app.storage import notifications_store
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 

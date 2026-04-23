@@ -7,6 +7,7 @@ from todo_service.app.security import create_access_token
 from datetime import timedelta
 from todo_service.app.config import settings
 from todo_service.app.dependencies import get_current_user
+from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -27,11 +28,15 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(username: str, password: str, db: Session = Depends(get_db)):
+def login(form_data: OAuth2PasswordRequestForm = Depends(),db: Session = Depends(get_db)):
     """
     Вхід користувача та отримання токена
     """
-    user = UserService.authenticate_user(db, username, password)
+    user = UserService.authenticate_user(
+        db,
+        form_data.username,
+        form_data.password
+    )
 
     if not user:
         raise HTTPException(

@@ -17,7 +17,7 @@ login_data = {
     "username": "alice",
     "password": "alice_password_123"
 }
-login_response = requests.post(f"{BASE_URL}/auth/login", params=login_data)
+login_response = requests.post(f"{BASE_URL}/auth/login", data=login_data)
 print("Login status:", login_response.status_code)
 print("Login body:", login_response.json())
 

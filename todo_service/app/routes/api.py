@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter,HTTPException, status
 from todo_service.app.views.auth import router as auth_router
 from todo_service.app.views.todos import router as todos_router
+from todo_service.app.config import settings
 import httpx
 
 # Основний API роутер
@@ -14,24 +15,41 @@ api_router.include_router(todos_router)
 @api_router.get("/analytics/user/{user_id}")
 async def proxy_analytics(user_id: int):
     """Проксі до analytics сервісу"""
-    async with httpx.AsyncClient() as client:
-        # for local
-        response = await client.get(f"http://localhost:8001/analytics/user/{user_id}")
-        # for docker
-        # response = await client.get(f"http://analytics_service:8000/analytics/user/{user_id}")
-
-        return response.json()
-
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.analytics_service_url}/analytics/user/{user_id}")
+            response.raise_for_status()
+            return response.json()
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Analytics service is unavailable"
+        )
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Analytics service error: {e.response.text}"
+        )
 @api_router.get("/notifications/user/{user_id}")
 async def proxy_notifications(user_id: int):
     """Проксі до notification сервісу"""
-    async with httpx.AsyncClient() as client:
-        # for local
-        response = await client.get(f"http://localhost:8002/notifications/user/{user_id}")
-        # for docker
-        # response = await client.get(f"http://notification_service:8000/notifications/user/{user_id}")
-        return response.json()
-
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.notification_service_url}/notifications/user/{user_id}")
+            response.raise_for_status()
+            return response.json()
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Notification service is unavailable"
+        )
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Notification service error: {e.response.text}"
+        )
 
 
 __all__ = ["api_router"]

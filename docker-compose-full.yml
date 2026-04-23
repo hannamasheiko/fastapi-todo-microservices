@@ -59,6 +59,8 @@ services:
       RABBITMQ_HOST: rabbitmq
       SECRET_KEY: your-secret-key
       DEBUG: "True"
+      ANALYTICS_SERVICE_URL: http://analytics_service:8000
+      NOTIFICATION_SERVICE_URL: http://notification_service:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,8 +72,8 @@ services:
 
   notification_service:
     build:
-      context: ./notification_service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: notification_service/Dockerfile
     container_name: notification-api
     ports:
       - "8002:8000"
@@ -81,8 +83,21 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-
+    command: uvicorn notification_service.app.main:app --host 0.0.0.0 --port 8000
+  analytics_service:
+    build:
+      context: .
+      dockerfile: analytics_service/Dockerfile
+    container_name: analytics-api
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql://todo_user:secure_password_123@postgres:5432/todo_db
+      DEBUG: "True"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn analytics_service.app.main:app --host 0.0.0.0 --port 8000
 volumes:
   postgres_data:
   redis_data:

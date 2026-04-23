@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     redis_db: int = int(os.getenv("REDIS_DB", 0))
     cache_ttl: int = 300  # 5 хвилин
 
+    analytics_service_url: str = os.getenv("ANALYTICS_SERVICE_URL","http://localhost:8001")
+    notification_service_url: str = os.getenv("NOTIFICATION_SERVICE_URL","http://localhost:8002")
 
     class Config:
         env_file = ".env"
