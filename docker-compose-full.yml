@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: todo-postgres
+    environment:
+      POSTGRES_USER: todo_user
+      POSTGRES_PASSWORD: secure_password_123
+      POSTGRES_DB: todo_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todo_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: todo-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: todo-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  todo_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: todo-api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://todo_user:secure_password_123@postgres:5432/todo_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      SECRET_KEY: your-secret-key
+      DEBUG: "True"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    command: uvicorn todo_service.app.main:app --host 0.0.0.0 --port 8000
+
+  notification_service:
+    build:
+      context: ./notification_service
+      dockerfile: Dockerfile
+    container_name: notification-api
+    ports:
+      - "8002:8000"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      DEBUG: "True"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+volumes:
+  postgres_data:
+  redis_data:

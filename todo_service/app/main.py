@@ -1,0 +1,71 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from todo_service.app.routes import api_router
+from todo_service.app.database import Base, engine
+from todo_service.app.config import settings
+from todo_service.app.services.cache_service import cache_service
+
+# Створюємо таблиці (у продакшені це робить Alembic)
+Base.metadata.create_all(bind=engine)
+
+# Ініціалізуємо FastAPI
+app = FastAPI(
+    title="Todo API",
+    description="REST API з MVC паттерном, PostgreSQL та мікросервісами",
+    version="3.0.0"
+)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Підключаємо API роутер
+app.include_router(api_router)
+
+# Статус endpoint
+@app.get("/", tags=["Health"])
+def read_root():
+    """Перевірка статусу сервера"""
+    return {
+        "message": "Todo API is running!",
+        "docs": "/docs",
+        "version": "3.0.0"
+    }
+
+
+@app.get("/health", tags=["Health"])
+def health_check():
+    """Health check з перевіркою Redis"""
+    redis_status = "healthy" if cache_service.health_check() else "unhealthy"
+
+    return {
+        "status": "healthy",
+        "redis": redis_status
+    }
+
+
+@app.get("/cache/stats", tags=["Cache"])
+def cache_stats():
+    """Статистика Redis кеша"""
+    info = cache_service.redis_client.info()
+
+    return {
+        "used_memory": info.get("used_memory_human"),
+        "connected_clients": info.get("connected_clients"),
+        "total_commands_processed": info.get("total_commands_processed")
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "todo_service.app.main:app",
+        host=settings.api_host,
+        port=settings.api_port,
+        reload=settings.debug
+    )
