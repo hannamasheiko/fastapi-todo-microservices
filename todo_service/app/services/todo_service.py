@@ -25,6 +25,9 @@ class TodoService:
         db.commit()
         db.refresh(db_todo)
 
+        # Інвалідуємо кеш списку задач користувача
+        cache_service.delete(f"user:{user.id}:todos")
+
         # 🆕 Відправляємо повідомлення в RabbitMQ
         try:
             producer.declare_queue("task:created")
@@ -113,7 +116,7 @@ class TodoService:
         db.commit()
         db.refresh(todo)
 
-        # 🆕 Інвалідуємо кеш при оновленні
+        # Інвалідуємо кеш при оновленні
         cache_service.delete(f"todo:{todo.id}:user:{todo.owner_id}")
         cache_service.delete(f"user:{todo.owner_id}:todos")
 
@@ -128,7 +131,7 @@ class TodoService:
         db.delete(todo)
         db.commit()
 
-        # 🆕 Видаляємо з кеша
+        # Видаляємо з кеша
         cache_service.delete(f"todo:{todo_id}:user:{user_id}")
         cache_service.delete(f"user:{user_id}:todos")
 
