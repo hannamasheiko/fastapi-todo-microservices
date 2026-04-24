@@ -1,8 +1,7 @@
 from sqlalchemy.orm import Session
-from typing import List
 from todo_service.app.models import TodoItem, User
 from todo_service.app.schemas import TodoItemCreate, TodoItemUpdate
-from todo_service.app.services.rabbitmq_producer import producer  # Додаємо import
+from todo_service.app.services.rabbitmq_producer import producer
 from todo_service.app.services.cache_service import cache_service
 import logging
 
@@ -45,71 +44,59 @@ class TodoService:
         return db_todo
 
     @staticmethod
-    def get_user_todos(db: Session, user: User) -> List[TodoItem]:
+    def _serialize_todo(todo: TodoItem) -> dict:
+        return {
+            "id": todo.id,
+            "title": todo.title,
+            "description": todo.description,
+            "completed": todo.completed,
+            "priority": todo.priority,
+            "owner_id": todo.owner_id,
+            "created_at": todo.created_at.isoformat() if todo.created_at else None,
+            "updated_at": todo.updated_at.isoformat() if todo.updated_at else None,
+        }
+
+    @staticmethod
+    def get_user_todos(db: Session, user: User) -> list[dict]:
         """Отримуємо завдання користувача з кешем"""
         cache_key = f"user:{user.id}:todos"
-
-        # Спробуємо отримати з кеша
         cached_todos = cache_service.get(cache_key)
         if cached_todos:
             return cached_todos
 
-        # Якщо немає в кеші, беремо з БД
         todos = db.query(TodoItem).filter(
             TodoItem.owner_id == user.id
         ).order_by(TodoItem.created_at.desc()).all()
+        serialized_todos = [TodoService._serialize_todo(t) for t in todos]
+        cache_service.set(cache_key, serialized_todos, ttl=300)
 
-        # Зберігаємо в кеш на 5 хвилин
-        # cache_service.set(cache_key, [t.__dict__ for t in todos], ttl=300)
-        cache_service.set(
-            cache_key,
-            [
-                {
-                    "id": t.id,
-                    "title": t.title,
-                    "description": t.description,
-                    "completed": t.completed,
-                    "priority": t.priority,
-                    "owner_id": t.owner_id,
-                    "created_at": t.created_at.isoformat() if t.created_at else None,
-                    "updated_at": t.updated_at.isoformat() if t.updated_at else None,
-                }
-                for t in todos
-            ],
-            ttl=300
-        )
-
-        return todos
+        return serialized_todos
 
     @staticmethod
-    def get_todo_by_id(db: Session, todo_id: int, user: User) -> TodoItem | None:
-        """Отримуємо завдання з кешем"""
+    def get_todo_by_id(db: Session, todo_id: int, user: User) -> dict | None:
+        """Отримуємо завдання з кешем для read-only сценарію"""
         cache_key = f"todo:{todo_id}:user:{user.id}"
-
-        # Спробуємо кеш
         cached_todo = cache_service.get(cache_key)
         if cached_todo:
             return cached_todo
-
-        # З БД
         todo = db.query(TodoItem).filter(
             (TodoItem.id == todo_id) &
             (TodoItem.owner_id == user.id)
         ).first()
-
         if todo:
-            # cache_service.set(cache_key, todo.__dict__)
-            cache_service.set(cache_key, {
-                "id": todo.id,
-                "title": todo.title,
-                "description": todo.description,
-                "completed": todo.completed,
-                "priority": todo.priority,
-                "owner_id": todo.owner_id,
-                "created_at": todo.created_at.isoformat() if todo.created_at else None,
-                "updated_at": todo.updated_at.isoformat() if todo.updated_at else None,
-            })
-        return todo
+            serialized = TodoService._serialize_todo(todo)
+            cache_service.set(cache_key, serialized, ttl=300)
+            return serialized
+
+        return None
+
+    @staticmethod
+    def get_todo_orm_by_id(db: Session, todo_id: int, user: User) -> TodoItem | None:
+        """Отримуємо ORM-об'єкт із БД для update/delete"""
+        return db.query(TodoItem).filter(
+            (TodoItem.id == todo_id) &
+            (TodoItem.owner_id == user.id)
+        ).first()
 
     @staticmethod
     def update_todo(db: Session, todo: TodoItem, update_data: TodoItemUpdate) -> TodoItem:

@@ -56,7 +56,7 @@ def update_todo(
         current_user: User = Depends(get_current_user)
 ):
     """Оновити завдання"""
-    todo = TodoService.get_todo_by_id(db, todo_id, current_user)
+    todo = TodoService.get_todo_orm_by_id(db, todo_id, current_user)
 
     if not todo:
         raise HTTPException(
@@ -74,7 +74,7 @@ def delete_todo(
         current_user: User = Depends(get_current_user)
 ):
     """Видалити завдання"""
-    todo = TodoService.get_todo_by_id(db, todo_id, current_user)
+    todo = TodoService.get_todo_orm_by_id(db, todo_id, current_user)
 
     if not todo:
         raise HTTPException(
