@@ -28,9 +28,8 @@ class TodoService:
         # Інвалідуємо кеш списку задач користувача
         cache_service.delete(f"user:{user.id}:todos")
 
-        # 🆕 Відправляємо повідомлення в RabbitMQ
+        # Відправляємо повідомлення в RabbitMQ
         try:
-            producer.declare_queue("task:created")
             producer.publish_message(
                 queue_name="task:created",
                 message={

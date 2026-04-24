@@ -3,7 +3,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from todo_service.app.routes import api_router
 from todo_service.app.config import settings
 from todo_service.app.services.cache_service import cache_service
+from todo_service.app.services.rabbitmq_producer import producer
+from contextlib import asynccontextmanager
+import logging
 
+
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Ініціалізація ресурсів при старті застосунку"""
+    try:
+        producer.connect()
+        producer.declare_queue("task:created")
+    except Exception as e:
+        logger.error(f"RabbitMQ startup init failed: {e}")
+    yield
+    try:
+        producer.close()
+    except Exception:
+        pass
 
 # Ініціалізуємо FastAPI
 app = FastAPI(

@@ -2,10 +2,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from notification_service.app.views import router
 from notification_service.app.consumers.task_consumer import start_consumers
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Запускаємо RabbitMQ консюмерів при старті застосунку"""
+    start_consumers()
+    yield
+
+
 
 app = FastAPI(
     title="Notification Service",
     description="Мікросервіс нотифікацій з RabbitMQ",
+    lifespan=lifespan,
     version="2.0.0"
 )
 
@@ -18,12 +29,6 @@ app.add_middleware(
 )
 
 app.include_router(router)
-
-#Запускаємо консюмерів при старті
-@app.on_event("startup")
-async def startup_event():
-    """Запускаємо RabbitMQ консюмерів"""
-    start_consumers()
 
 
 @app.get("/", tags=["Health"])
