@@ -1,9 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import JWTError, jwt
+from jose import JWTError, jwt, ExpiredSignatureError
 from passlib.context import CryptContext
 from todo_service.app.config import settings
 from todo_service.app.schemas import TokenData
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ==================== PASSWORD HASHING ====================
 
@@ -58,12 +61,20 @@ def decode_token(token: str) -> Optional[TokenData]:
             settings.secret_key,
             algorithms=[settings.algorithm]
         )
-        username: str = payload.get("sub")
-
+        username: str | None = payload.get("sub")
         if username is None:
+            logger.warning("JWT token is missing 'sub' claim")
+
             return None
 
         return TokenData(username=username)
 
-    except JWTError:
+    except ExpiredSignatureError:
+        logger.warning("JWT token has expired")
+
+        return None
+
+    except JWTError as e:
+        logger.warning(f"Invalid JWT token: {e}")
+
         return None

@@ -20,7 +20,7 @@ class Settings(BaseSettings):
         "your-secret-key-min-32-chars"
     )
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 15
+    access_token_expire_minutes: int = 30
 
     # API
     api_host: str = os.getenv("API_HOST", "127.0.0.1")
