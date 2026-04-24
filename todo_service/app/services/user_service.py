@@ -15,7 +15,6 @@ class UserService:
             "id": user.id,
             "username": user.username,
             "email": user.email,
-            "hashed_password": user.hashed_password,
             "is_active": user.is_active,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "updated_at": user.updated_at.isoformat() if user.updated_at else None,
@@ -28,7 +27,6 @@ class UserService:
             id=data["id"],
             username=data["username"],
             email=data["email"],
-            hashed_password=data["hashed_password"],
             is_active=data["is_active"],
         )
 
