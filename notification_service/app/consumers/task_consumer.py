@@ -5,9 +5,6 @@ from notification_service.app.storage import notifications_store
 
 logger = logging.getLogger(__name__)
 
-# Фейкова БД повідомлень
-# notifications_store = {}
-
 
 def task_completed_handler(ch, method, properties, body):
     """Обробляємо подію task:completed"""
@@ -93,3 +90,5 @@ def start_consumers():
 
     thread1.start()
     thread2.start()
+
+    logger.info("RabbitMQ consumer threads started")
