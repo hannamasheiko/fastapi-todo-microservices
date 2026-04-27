@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     redis_db: int = int(os.getenv("REDIS_DB", 0))
     cache_ttl: int = 300  # 5 хвилин
 
+    # RabbitMQ
+    rabbitmq_host: str = os.getenv("RABBITMQ_HOST", "localhost")
+    rabbitmq_port: int = int(os.getenv("RABBITMQ_PORT", "5672"))
+    rabbitmq_user: str = os.getenv("RABBITMQ_USER", "guest")
+    rabbitmq_password: str = os.getenv("RABBITMQ_PASSWORD", "guest")
+
     analytics_service_url: str = os.getenv("ANALYTICS_SERVICE_URL","http://localhost:8001")
     notification_service_url: str = os.getenv("NOTIFICATION_SERVICE_URL","http://localhost:8002")
 

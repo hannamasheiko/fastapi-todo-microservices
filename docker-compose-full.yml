@@ -57,6 +57,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
       SECRET_KEY: your-secret-key
       DEBUG: "True"
       ANALYTICS_SERVICE_URL: http://analytics_service:8000
@@ -79,6 +82,9 @@ services:
       - "8002:8000"
     environment:
       RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
       DEBUG: "True"
     depends_on:
       rabbitmq:

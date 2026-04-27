@@ -3,6 +3,7 @@ import json
 from typing import Dict, Any
 import logging
 import os
+from todo_service.app.config import settings
 
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ class RabbitMQProducer:
     def connect(self):
         """Підключаємось до RabbitMQ"""
         try:
-            credentials = pika.PlainCredentials('guest', 'guest')
+            credentials = pika.PlainCredentials(settings.rabbitmq_user, settings.rabbitmq_password)
             parameters = pika.ConnectionParameters(
                 host=self.host,
                 port=self.port,
