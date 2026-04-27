@@ -36,10 +36,25 @@ class RabbitMQProducer:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
             raise
 
+    def is_connected(self) -> bool:
+        """Перевіряємо, що connection і channel живі"""
+        return (
+            self.connection is not None
+            and self.channel is not None
+            and self.connection.is_open
+            and self.channel.is_open
+        )
+
+    def ensure_connection(self):
+        """Гарантуємо, що з'єднання з RabbitMQ активне"""
+        if not self.is_connected():
+            logger.warning("RabbitMQ connection/channel is closed. Reconnecting...")
+            self.close()
+            self.connect()
+
     def declare_queue(self, queue_name: str, durable: bool = True):
         """Створюємо чергу (queue)"""
-        if not self.channel:
-            self.connect()
+        self.ensure_connection()
 
         self.channel.queue_declare(
             queue=queue_name,
@@ -49,35 +64,61 @@ class RabbitMQProducer:
         logger.info(f"Queue '{queue_name}' declared")
 
     def publish_message(
-            self,
-            queue_name: str,
-            message: Dict[str, Any],
-            routing_key: str = None
+        self,
+        queue_name: str,
+        message: Dict[str, Any],
+        routing_key: str = None
     ):
         """Відправляємо повідомлення в чергу"""
-        if not self.channel:
-            self.connect()
+        self.ensure_connection()
 
         try:
             self.channel.basic_publish(
-                exchange='',
+                exchange="",
                 routing_key=routing_key or queue_name,
                 body=json.dumps(message),
                 properties=pika.BasicProperties(
-                    delivery_mode=2,  # Persisten message
-                    content_type='application/json'
+                    delivery_mode=2,
+                    content_type="application/json"
                 )
             )
             logger.info(f"Message published to {queue_name}: {message}")
+
         except Exception as e:
-            logger.error(f"Failed to publish message: {e}")
-            raise
+            logger.warning(f"Publish failed, trying to reconnect: {e}")
+
+            # одна повторна спроба після reconnect
+            self.close()
+            self.connect()
+
+            self.channel.basic_publish(
+                exchange="",
+                routing_key=routing_key or queue_name,
+                body=json.dumps(message),
+                properties=pika.BasicProperties(
+                    delivery_mode=2,
+                    content_type="application/json"
+                )
+            )
+            logger.info(f"Message published to {queue_name} after reconnect: {message}")
 
     def close(self):
         """Закриваємо з'єднання"""
-        if self.connection:
-            self.connection.close()
-            logger.info("Closed RabbitMQ connection")
+        try:
+            if self.channel and self.channel.is_open:
+                self.channel.close()
+        except Exception:
+            pass
+
+        try:
+            if self.connection and self.connection.is_open:
+                self.connection.close()
+        except Exception:
+            pass
+
+        self.channel = None
+        self.connection = None
+        logger.info("Closed RabbitMQ connection")
 
 
 # Глобальна інстанція продюсера
