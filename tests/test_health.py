@@ -1,15 +1,9 @@
-from fastapi.testclient import TestClient
-from todo_service.app.main import app
-
-client = TestClient(app)
-
-
-def test_health_endpoint_returns_200():
+def test_health_endpoint_returns_200(client):
     response = client.get("/health")
     assert response.status_code == 200
 
 
-def test_health_endpoint_returns_expected_payload():
+def test_health_endpoint_returns_expected_payload(client):
     response = client.get("/health")
 
     assert response.status_code == 200

@@ -1,12 +1,8 @@
-from fastapi.testclient import TestClient
-from todo_service.app.main import app
 import uuid
 
-client = TestClient(app)
 
-
-def create_test_user():
-    """Створюємо унікального тестового користувача через API"""
+def create_test_user(client):
+    """Створити унікального тестового користувача через API"""
     unique_suffix = uuid.uuid4().hex[:8]
 
     user_data = {
@@ -22,8 +18,8 @@ def create_test_user():
     return user_data
 
 
-def test_login_success():
-    user = create_test_user()
+def test_login_success(client):
+    user = create_test_user(client)
 
     response = client.post(
         "/api/v1/auth/login",
@@ -36,13 +32,12 @@ def test_login_success():
     assert response.status_code == 200
 
     data = response.json()
-
     assert "access_token" in data
     assert data["token_type"] == "bearer"
 
 
-def test_login_invalid_password_returns_401():
-    user = create_test_user()
+def test_login_invalid_password_returns_401(client):
+    user = create_test_user(client)
 
     response = client.post(
         "/api/v1/auth/login",
@@ -59,7 +54,7 @@ def test_login_invalid_password_returns_401():
     assert data["detail"] == "Invalid credentials"
 
 
-def test_get_todos_without_token_is_rejected():
+def test_get_todos_without_token_is_rejected(client):
     response = client.get("/api/v1/todos")
 
     assert response.status_code in [401, 403]
@@ -68,8 +63,8 @@ def test_get_todos_without_token_is_rejected():
     assert "detail" in data
 
 
-def test_get_todos_with_valid_token_returns_200():
-    user = create_test_user()
+def test_get_todos_with_valid_token_returns_200(client):
+    user = create_test_user(client)
 
     login_response = client.post(
         "/api/v1/auth/login",
