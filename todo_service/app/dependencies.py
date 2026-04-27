@@ -23,7 +23,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"}
         )
 
-    user = UserService.get_user_by_username(db, token_data.username)
+    user = UserService.get_user_by_username_db(db, token_data.username)
 
     if user is None:
         raise HTTPException(

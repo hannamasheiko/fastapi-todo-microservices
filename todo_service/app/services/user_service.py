@@ -100,3 +100,8 @@ class UserService:
             cache_service.set(cache_key, UserService._serialize_user(user))
 
         return user
+
+    @staticmethod
+    def get_user_by_username_db(db: Session, username: str) -> User | None:
+        """Отримуємо користувача за username напряму з БД без кешу"""
+        return db.query(User).filter(User.username == username).first()
