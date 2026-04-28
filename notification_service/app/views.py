@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from notification_service.app.shemas import NotificationSchema
 from typing import List
-from datetime import datetime
+from datetime import datetime,UTC
 from notification_service.app.storage import notifications_store
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
@@ -16,8 +16,8 @@ def send_notification(notification: NotificationSchema):
         notifications_store[user_id] = []
 
     notif = {
-        **notification.dict(),
-        "created_at": datetime.utcnow(),
+        **notification.model_dump(),
+        "created_at": datetime.now(UTC),
         "id": len(notifications_store[user_id]) + 1
     }
 
@@ -41,7 +41,7 @@ def notify_task_completed(user_id: int, task_title: str):
         "message": f'Ви виконали завдання: "{task_title}"',
         "type": "success",
         "is_read": False,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.now(UTC)
     }
 
     if user_id not in notifications_store:

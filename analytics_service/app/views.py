@@ -1,6 +1,5 @@
-from fastapi import APIRouter, HTTPException, status
-from sqlalchemy.orm import Session
-from datetime import datetime
+from fastapi import APIRouter
+from datetime import datetime, UTC
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -13,7 +12,7 @@ def get_user_analytics(user_id: int):
         "total_todos": 15,
         "completed_todos": 10,
         "completion_rate": 67,
-        "last_updated": datetime.utcnow()
+        "last_updated": datetime.now(UTC)
     }
 
 
@@ -27,5 +26,5 @@ def sync_user_analytics(user_id: int, total: int, completed: int):
         "total_todos": total,
         "completed_todos": completed,
         "completion_rate": completion_rate,
-        "synced_at": datetime.utcnow()
+        "synced_at": datetime.now(UTC)
     }
