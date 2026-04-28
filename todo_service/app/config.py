@@ -1,6 +1,5 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
@@ -9,42 +8,39 @@ class Settings(BaseSettings):
     """Конфігурація додатку"""
 
     # Database
-    database_url: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql://todo_user:password123@localhost:5432/todo_db"
-    )
+    database_url: str
 
     # JWT
-    secret_key: str = os.getenv(
-        "SECRET_KEY",
-        "your-secret-key-min-32-chars"
-    )
+    secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 
     # API
-    api_host: str = os.getenv("API_HOST", "127.0.0.1")
-    api_port: int = int(os.getenv("API_PORT", 8000))
-    debug: bool = os.getenv("DEBUG", "True") == "True"
+    api_host: str = "127.0.0.1"
+    api_port: int = 8000
+    debug: bool = True
 
     # Redis
-    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    redis_host: str = os.getenv("REDIS_HOST", "localhost")
-    redis_port: int = int(os.getenv("REDIS_PORT", 6379))
-    redis_db: int = int(os.getenv("REDIS_DB", 0))
-    cache_ttl: int = 300  # 5 хвилин
+    redis_url: str = "redis://localhost:6379/0"
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
+    cache_ttl: int = 300
 
     # RabbitMQ
-    rabbitmq_host: str = os.getenv("RABBITMQ_HOST", "localhost")
-    rabbitmq_port: int = int(os.getenv("RABBITMQ_PORT", "5672"))
-    rabbitmq_user: str = os.getenv("RABBITMQ_USER", "guest")
-    rabbitmq_password: str = os.getenv("RABBITMQ_PASSWORD", "guest")
+    rabbitmq_host: str = "localhost"
+    rabbitmq_port: int = 5672
+    rabbitmq_user: str = "guest"
+    rabbitmq_password: str = "guest"
 
-    analytics_service_url: str = os.getenv("ANALYTICS_SERVICE_URL","http://localhost:8001")
-    notification_service_url: str = os.getenv("NOTIFICATION_SERVICE_URL","http://localhost:8002")
+    # External services
+    analytics_service_url: str = "http://localhost:8001"
+    notification_service_url: str = "http://localhost:8002"
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore"
+    )
 
 
 settings = Settings()
