@@ -6,8 +6,10 @@
 - REST API
 - авторизацію (JWT)
 - кешування (Redis)
-- асинхронну взаємодію між сервісами (RabbitMQ)
-- базову мікросервісну архітектуру
+- взаємодію між сервісами (RabbitMQ)
+- базову мікросервісну архітектуру 
+- тестування API (pytest)
+- міграції бази даних (Alembic)
 
 ## Архітектура
 
@@ -35,6 +37,7 @@
 - **Alembic (міграції)**
 - **JWT (авторизація)**
 - **httpx (міжсервісні запити)**
+- **pytest**
 
 ---
 
@@ -52,6 +55,7 @@
 - Прив’язка задач до користувача
 - Кешування через Redis
 - Інвалідація кешу при зміні даних
+- Відправка подій у RabbitMQ при створенні задач
 
 ---
 
@@ -81,19 +85,50 @@
 
 ## Запуск
 
+### Environment variables
+
+Створи локальний `.env` на основі прикладу:
+
+`cp .env.example .env`
+
+Після цього відредагуй значення у .env під своє локальне середовище.
+
 ### Через Docker
 
 Запускає всі сервіси разом:
 
-docker compose -f docker-compose-full.yml up -d --build
+` docker compose -f docker-compose-full.yml up -d --build`
 
 ### Локально
 
 Запуск кожного сервісу окремо:
 
-- uvicorn todo_service.app.main:app --reload --port 8000
-- uvicorn analytics_service.app.main:app --reload --port 8001
-- uvicorn notification_service.app.main:app --reload --port 8002
+- `uvicorn todo_service.app.main:app --reload --port 8000`
+- `uvicorn analytics_service.app.main:app --reload --port 8001`
+- `uvicorn notification_service.app.main:app --reload --port 8002`
+
+### Міграції
+
+Застосувати міграції:
+
+`alembic upgrade head`
+
+### Тестування
+
+У проєкті є API-тести для:
+
+* health endpoints
+* auth flow
+* todo CRUD
+* перевірки доступу до чужих ресурсів
+* 404 і unauthorized сценаріїв
+
+Тести запускаються з окремою test database і ізоляцією через pytest fixtures.
+
+Запуск усіх тестів:
+
+`pytest -v`
+
 
 ## API документація
 
