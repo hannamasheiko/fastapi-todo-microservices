@@ -84,3 +84,43 @@ def test_get_todos_with_valid_token_returns_200(client):
     )
 
     assert response.status_code == 200
+
+def test_get_me_with_valid_token_returns_current_user(client):
+    user = create_test_user(client)
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        data={
+            "username": user["username"],
+            "password": user["password"]
+        }
+    )
+
+    assert login_response.status_code == 200
+
+    token = login_response.json()["access_token"]
+
+    response = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["username"] == user["username"]
+    assert data["email"] == user["email"]
+    assert data["is_active"] is True
+    assert "id" in data
+
+
+def test_get_me_with_invalid_token_is_rejected(client):
+    response = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": "Bearer invalid_token"}
+    )
+
+    assert response.status_code in [401, 403]
+
+    data = response.json()
+    assert "detail" in data

@@ -182,3 +182,158 @@ def test_get_other_users_todo_is_rejected(client):
     data = response.json()
     assert "detail" in data
     assert data["detail"] == "Todo not found"
+
+
+def test_update_todo_success(client):
+    user = create_test_user(client)
+    headers = get_auth_headers(client, user)
+
+    create_response = create_todo(
+        client,
+        headers,
+        title="Old title",
+        description="Old description",
+        completed=False,
+        priority=1
+    )
+
+    assert create_response.status_code == 201
+    todo_id = create_response.json()["id"]
+
+    response = client.put(
+        f"/api/v1/todos/{todo_id}",
+        headers=headers,
+        json={
+            "title": "New title",
+            "description": "New description",
+            "completed": True,
+            "priority": 3
+        }
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["id"] == todo_id
+    assert data["title"] == "New title"
+    assert data["description"] == "New description"
+    assert data["completed"] is True
+    assert data["priority"] == 3
+
+
+def test_update_nonexistent_todo_returns_404(client):
+    user = create_test_user(client)
+    headers = get_auth_headers(client, user)
+
+    response = client.put(
+        "/api/v1/todos/999999",
+        headers=headers,
+        json={
+            "title": "Does not matter",
+            "description": "No todo",
+            "completed": True,
+            "priority": 2
+        }
+    )
+
+    assert response.status_code == 404
+
+    data = response.json()
+    assert "detail" in data
+    assert data["detail"] == "Todo not found"
+
+
+def test_update_other_users_todo_is_rejected(client):
+    user1 = create_test_user(client)
+    headers1 = get_auth_headers(client, user1)
+
+    user2 = create_test_user(client)
+    headers2 = get_auth_headers(client, user2)
+
+    create_response = create_todo(
+        client,
+        headers1,
+        title="User1 private todo",
+        description="Only user1 can update this"
+    )
+
+    assert create_response.status_code == 201
+    todo_id = create_response.json()["id"]
+
+    response = client.put(
+        f"/api/v1/todos/{todo_id}",
+        headers=headers2,
+        json={
+            "title": "Hacked title",
+            "description": "Should not update",
+            "completed": True,
+            "priority": 5
+        }
+    )
+
+    assert response.status_code == 404
+
+    data = response.json()
+    assert "detail" in data
+    assert data["detail"] == "Todo not found"
+
+def test_delete_todo_success_returns_204(client):
+    user = create_test_user(client)
+    headers = get_auth_headers(client, user)
+
+    create_response = create_todo(
+        client,
+        headers,
+        title="Todo to delete",
+        description="Will be removed"
+    )
+
+    assert create_response.status_code == 201
+    todo_id = create_response.json()["id"]
+
+    delete_response = client.delete(f"/api/v1/todos/{todo_id}", headers=headers)
+
+    assert delete_response.status_code == 204
+    assert delete_response.text == ""
+
+    get_response = client.get(f"/api/v1/todos/{todo_id}", headers=headers)
+    assert get_response.status_code == 404
+
+
+def test_delete_nonexistent_todo_returns_404(client):
+    user = create_test_user(client)
+    headers = get_auth_headers(client, user)
+
+    response = client.delete("/api/v1/todos/999999", headers=headers)
+
+    assert response.status_code == 404
+
+    data = response.json()
+    assert "detail" in data
+    assert data["detail"] == "Todo not found"
+
+
+def test_delete_other_users_todo_is_rejected(client):
+    user1 = create_test_user(client)
+    headers1 = get_auth_headers(client, user1)
+
+    user2 = create_test_user(client)
+    headers2 = get_auth_headers(client, user2)
+
+    create_response = create_todo(
+        client,
+        headers1,
+        title="User1 todo to protect",
+        description="User2 must not delete it"
+    )
+
+    assert create_response.status_code == 201
+    todo_id = create_response.json()["id"]
+
+    response = client.delete(f"/api/v1/todos/{todo_id}", headers=headers2)
+
+    assert response.status_code == 404
+
+    data = response.json()
+    assert "detail" in data
+    assert data["detail"] == "Todo not found"
