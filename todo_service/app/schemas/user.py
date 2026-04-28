@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from pydantic import BaseModel, EmailStr, ConfigDict
+from typing import Optional
 from datetime import datetime
 
 # ==================== USER SCHEMAS ====================
@@ -20,8 +20,7 @@ class UserInDB(UserBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ==================== TOKEN SCHEMAS ====================
 
