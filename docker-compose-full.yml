@@ -16,6 +16,23 @@ services:
       timeout: 5s
       retries: 5
 
+  analytics_postgres:
+    image: postgres:15
+    container_name: analytics-postgres
+    environment:
+      POSTGRES_USER: analytics_user
+      POSTGRES_PASSWORD: analytics_password_123
+      POSTGRES_DB: analytics_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - analytics_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analytics_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     container_name: todo-redis
@@ -90,6 +107,7 @@ services:
       rabbitmq:
         condition: service_healthy
     command: uvicorn notification_service.app.main:app --host 0.0.0.0 --port 8000
+
   analytics_service:
     build:
       context: .
@@ -98,12 +116,14 @@ services:
     ports:
       - "8001:8000"
     environment:
-      DATABASE_URL: postgresql://todo_user:secure_password_123@postgres:5432/todo_db
+      ANALYTICS_DATABASE_URL: postgresql://analytics_user:analytics_password_123@analytics_postgres:5432/analytics_db
       DEBUG: "True"
     depends_on:
-      postgres:
+      analytics_postgres:
         condition: service_healthy
     command: uvicorn analytics_service.app.main:app --host 0.0.0.0 --port 8000
+
 volumes:
   postgres_data:
+  analytics_postgres_data:
   redis_data:

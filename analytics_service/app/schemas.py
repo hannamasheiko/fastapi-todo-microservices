@@ -1,14 +1,26 @@
-from pydantic import BaseModel
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class UserAnalyticsSyncSchema(BaseModel):
+    """Request schema for syncing user analytics."""
+
+    username: str | None = None
+    total_todos: int = Field(ge=0)
+    completed_todos: int = Field(ge=0)
 
 
 class UserAnalyticsSchema(BaseModel):
-    """Схема аналітики"""
+    """Response schema for user analytics."""
+
+    id: int
     user_id: int
-    username: str
+    username: str | None = None
     total_todos: int
     completed_todos: int
     completion_rate: int
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
