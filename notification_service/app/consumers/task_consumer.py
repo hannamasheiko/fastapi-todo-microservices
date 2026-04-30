@@ -1,78 +1,110 @@
 import json
 import logging
+from notification_service.app.database import SessionLocal
+from notification_service.app.models import Notification
 from notification_service.app.services.rabbitmq_consumer import RabbitMQConsumer
-from notification_service.app.storage import notifications_store
 
 logger = logging.getLogger(__name__)
 
 
+def create_notification(
+    user_id: int,
+    title: str,
+    message: str,
+    notification_type: str,
+) -> None:
+    """Create notification record in notification_db."""
+
+    db = SessionLocal()
+
+    try:
+        db_notification = Notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            type=notification_type,
+            is_read=False,
+        )
+
+        db.add(db_notification)
+        db.commit()
+        db.refresh(db_notification)
+
+        logger.info(
+            "Notification created in DB: id=%s, user_id=%s",
+            db_notification.id,
+            user_id,
+        )
+
+    except Exception as exc:
+        db.rollback()
+        logger.error(
+            "Failed to create notification for user_id=%s: %s",
+            user_id,
+            repr(exc),
+        )
+        raise
+
+    finally:
+        db.close()
+
+
 def task_completed_handler(ch, method, properties, body):
-    """Обробляємо подію task:completed"""
+    """Handle task:completed event."""
+
     try:
         message = json.loads(body)
-        logger.info(f"Received task_completed event: {message}")
+        logger.info("Received task_completed event: %s", message)
 
         user_id = message.get("user_id")
         task_title = message.get("title")
 
-        # Створюємо повідомлення
-        notification = {
-            "user_id": user_id,
-            "title": "Завдання виконане! ✅",
-            "message": f'Ви виконали завдання: "{task_title}"',
-            "type": "success",
-            "is_read": False,
-            "created_at": message.get("timestamp")
-        }
+        if user_id is None or not task_title:
+            raise ValueError(f"Invalid task_completed payload: {message}")
 
-        # Зберігаємо в "БД"
-        if user_id not in notifications_store:
-            notifications_store[user_id] = []
+        create_notification(
+            user_id=user_id,
+            title="Завдання виконане! ✅",
+            message=f'Ви виконали завдання: "{task_title}"',
+            notification_type="success",
+        )
 
-        notifications_store[user_id].append(notification)
-        logger.info(f"Notification created for user {user_id}")
-
-        # Підтверджуємо обробку
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    except Exception as e:
-        logger.error(f"Error processing message: {e}")
-        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+    except Exception as exc:
+        logger.error("Error processing task_completed message: %s", repr(exc))
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 
 def task_created_handler(ch, method, properties, body):
-    """Обробляємо подію task:created"""
+    """Handle task:created event."""
+
     try:
         message = json.loads(body)
-        logger.info(f"Received task_created event: {message}")
+        logger.info("Received task_created event: %s", message)
 
         user_id = message.get("user_id")
         task_title = message.get("title")
 
-        # Інформаційне повідомлення
-        notification = {
-            "user_id": user_id,
-            "title": "Нове завдання 📝",
-            "message": f'Ви створили завдання: "{task_title}"',
-            "type": "info",
-            "is_read": False,
-            "created_at": message.get("timestamp")
-        }
+        if user_id is None or not task_title:
+            raise ValueError(f"Invalid task_created payload: {message}")
 
-        if user_id not in notifications_store:
-            notifications_store[user_id] = []
-
-        notifications_store[user_id].append(notification)
+        create_notification(
+            user_id=user_id,
+            title="Нове завдання",
+            message=f'Ви створили завдання: "{task_title}"',
+            notification_type="info",
+        )
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    except Exception as e:
-        logger.error(f"Error processing message: {e}")
-        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+    except Exception as exc:
+        logger.error("Error processing task_created message: %s", repr(exc))
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 
 def start_consumers():
-    """Запускаємо консюмерів"""
+    """Start RabbitMQ consumers."""
     import threading
 
     def run_completed_consumer():

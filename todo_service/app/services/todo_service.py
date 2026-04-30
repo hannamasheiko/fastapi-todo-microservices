@@ -103,6 +103,9 @@ class TodoService:
     @staticmethod
     def update_todo(db: Session, todo: TodoItem, update_data: TodoItemUpdate) -> TodoItem:
         """Оновлюємо завдання і інвалідуємо кеш"""
+
+        was_completed = todo.completed
+
         if update_data.title is not None:
             todo.title = update_data.title
         if update_data.description is not None:
@@ -115,9 +118,23 @@ class TodoService:
         db.commit()
         db.refresh(todo)
 
-        # Інвалідуємо кеш при оновленні
         cache_service.delete(f"todo:{todo.id}:user:{todo.owner_id}")
         cache_service.delete(f"user:{todo.owner_id}:todos")
+
+        if not was_completed and todo.completed:
+            try:
+                producer.publish_message(
+                    queue_name="task:completed",
+                    message={
+                        "event": "task_completed",
+                        "user_id": todo.owner_id,
+                        "task_id": todo.id,
+                        "title": todo.title,
+                        "timestamp": todo.updated_at.isoformat()
+                    }
+                )
+            except Exception as e:
+                logger.error(f"RabbitMQ publish failed: {e}")
 
         return todo
 
