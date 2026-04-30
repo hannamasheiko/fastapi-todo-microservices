@@ -2,7 +2,7 @@ import pika
 import logging
 import time
 from typing import Callable
-from todo_service.app.config import settings
+from notification_service.app.config import settings
 
 logger = logging.getLogger(__name__)
 

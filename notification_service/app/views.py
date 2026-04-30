@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from notification_service.app.shemas import NotificationSchema
+from notification_service.app.schemas import NotificationSchema
 from typing import List
 from datetime import datetime,UTC
 from notification_service.app.storage import notifications_store
