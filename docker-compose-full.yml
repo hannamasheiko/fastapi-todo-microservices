@@ -32,6 +32,22 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  notification_postgres:
+    image: postgres:15
+    container_name: notification-postgres
+    environment:
+      POSTGRES_USER: notification_user
+      POSTGRES_PASSWORD: notification_password_123
+      POSTGRES_DB: notification_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - notification_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U notification_user -d notification_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -98,12 +114,15 @@ services:
     ports:
       - "8002:8000"
     environment:
+      NOTIFICATION_DATABASE_URL: postgresql://notification_user:notification_password_123@notification_postgres:5432/notification_db
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: guest
       RABBITMQ_PASSWORD: guest
       DEBUG: "True"
     depends_on:
+      notification_postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     command: uvicorn notification_service.app.main:app --host 0.0.0.0 --port 8000
@@ -126,4 +145,5 @@ services:
 volumes:
   postgres_data:
   analytics_postgres_data:
+  notification_postgres_data:
   redis_data:

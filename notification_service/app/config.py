@@ -10,6 +10,8 @@ ENV_FILE = BASE_DIR / ".env"
 class Settings(BaseSettings):
     """Configuration for notification service."""
 
+    notification_database_url: str
+
     rabbitmq_host: str = "localhost"
     rabbitmq_port: int = 5672
     rabbitmq_user: str = "guest"
