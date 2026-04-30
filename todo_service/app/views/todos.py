@@ -6,6 +6,8 @@ from todo_service.app.dependencies import get_current_user
 from todo_service.app.schemas import TodoItemCreate, TodoItemUpdate, TodoItemInDB
 from todo_service.app.services import TodoService
 from todo_service.app.models import User
+from todo_service.app.services.analytics_client import sync_user_analytics
+
 
 router = APIRouter(prefix="/todos", tags=["Todos"])
 
@@ -45,7 +47,12 @@ def create_todo(
         current_user: User = Depends(get_current_user)
 ):
     """Створити нове завдання"""
-    return TodoService.create_todo(db, todo, current_user)
+
+    created_todo = TodoService.create_todo(db, todo, current_user)
+
+    sync_user_analytics(db, current_user)
+
+    return created_todo
 
 
 @router.put("/{todo_id}", response_model=TodoItemInDB)
@@ -64,7 +71,11 @@ def update_todo(
             detail="Todo not found"
         )
 
-    return TodoService.update_todo(db, todo, todo_update)
+    updated_todo = TodoService.update_todo(db, todo, todo_update)
+
+    sync_user_analytics(db, current_user)
+
+    return updated_todo
 
 
 @router.delete("/{todo_id}", status_code=204)
@@ -83,3 +94,5 @@ def delete_todo(
         )
 
     TodoService.delete_todo(db, todo)
+
+    sync_user_analytics(db, current_user)

@@ -14,9 +14,12 @@ from analytics_service.app.schemas import (
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
-def calculate_completion_rate(total_todos: int, completed_todos: int) -> int:
-    """Calculate completion rate as integer percent."""
-    return int((completed_todos / max(total_todos, 1)) * 100)
+def calculate_completion_rate_percent(total_todos: int,completed_todos: int,) -> float:
+    """Calculate completion rate as percent rounded to 2 decimal places."""
+    if total_todos == 0:
+        return 0.0
+
+    return round((completed_todos / total_todos) * 100, 2)
 
 
 @router.get(
@@ -55,7 +58,7 @@ def sync_user_analytics(
 ):
     """Create or update user analytics record in analytics_db."""
 
-    completion_rate = calculate_completion_rate(
+    completion_rate_percent = calculate_completion_rate_percent(
         total_todos=payload.total_todos,
         completed_todos=payload.completed_todos,
     )
@@ -72,14 +75,14 @@ def sync_user_analytics(
             username=payload.username,
             total_todos=payload.total_todos,
             completed_todos=payload.completed_todos,
-            completion_rate=completion_rate,
+            completion_rate_percent=completion_rate_percent,
         )
         db.add(analytics)
     else:
         analytics.username = payload.username
         analytics.total_todos = payload.total_todos
         analytics.completed_todos = payload.completed_todos
-        analytics.completion_rate = completion_rate
+        analytics.completion_rate_percent = completion_rate_percent
         analytics.updated_at = datetime.now(UTC)
 
     db.commit()
