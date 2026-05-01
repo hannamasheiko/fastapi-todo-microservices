@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     api_host: str = "127.0.0.1"
     api_port: int = 8002
-    debug: bool = True
+    debug: bool = False
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
