@@ -93,7 +93,7 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: guest
       RABBITMQ_PASSWORD: guest
-      SECRET_KEY: your-secret-key
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key}
       DEBUG: "True"
       ANALYTICS_SERVICE_URL: http://analytics_service:8000
       NOTIFICATION_SERVICE_URL: http://notification_service:8000

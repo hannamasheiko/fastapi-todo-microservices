@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 
@@ -11,7 +11,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     """Схема для реєстрації"""
-    password: str
+    password: str = Field(min_length=8)
 
 class UserInDB(UserBase):
     """Схема користувача для повернення"""

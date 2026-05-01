@@ -61,19 +61,6 @@ class CacheService:
             logger.error(f"Cache DELETE error: {e}")
             return False
 
-    def delete_pattern(self, pattern: str) -> int:
-        """Видаляємо всі ключі за шаблоном"""
-        try:
-            keys = self.redis_client.keys(pattern)
-            if keys:
-                count = self.redis_client.delete(*keys)
-                logger.info(f"Cache DELETED {count} keys matching {pattern}")
-                return count
-            return 0
-        except Exception as e:
-            logger.error(f"Cache DELETE pattern error: {e}")
-            return 0
-
     def clear_all(self) -> bool:
         """Очищуємо весь кеш"""
         try:
