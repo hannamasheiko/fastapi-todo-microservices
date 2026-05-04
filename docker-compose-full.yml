@@ -135,7 +135,7 @@ services:
     ports:
       - "8001:8000"
     environment:
-      ANALYTICS_DATABASE_URL: postgresql://analytics_user:analytics_password_123@analytics_postgres:5432/analytics_db
+      ANALYTICS_DATABASE_URL: postgresql+asyncpg://analytics_user:analytics_password_123@analytics_postgres:5432/analytics_db
       DEBUG: "True"
     depends_on:
       analytics_postgres:

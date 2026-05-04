@@ -1,7 +1,6 @@
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from analytics_service.app.database import get_db
@@ -9,53 +8,60 @@ from analytics_service.app.main import app
 from analytics_service.app.models import Base
 
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+pytestmark = pytest.mark.anyio
 
+SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-engine = create_engine(
+engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
 )
 
-TestingSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
+TestingSessionLocal = async_sessionmaker(
     bind=engine,
+    autoflush=False,
+    expire_on_commit=False,
 )
 
 
 @pytest.fixture()
-def db_session():
-    Base.metadata.create_all(bind=engine)
-
-    db = TestingSessionLocal()
-
-    try:
-        yield db
-    finally:
-        db.close()
-        Base.metadata.drop_all(bind=engine)
+def anyio_backend():
+    return "asyncio"
 
 
 @pytest.fixture()
-def client(db_session):
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
+async def db_session():
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    async with TestingSessionLocal() as session:
+        yield session
+
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
+
+
+@pytest.fixture()
+async def client(db_session):
+    async def override_get_db():
+        yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(app) as test_client:
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as test_client:
         yield test_client
 
     app.dependency_overrides.clear()
 
 
-def test_analytics_health_check(client):
-    response = client.get("/health")
+async def test_analytics_health_check(client):
+    response = await client.get("/health")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -64,8 +70,8 @@ def test_analytics_health_check(client):
     }
 
 
-def test_get_analytics_not_found(client):
-    response = client.get("/analytics/user/999")
+async def test_get_analytics_not_found(client):
+    response = await client.get("/analytics/user/999")
 
     assert response.status_code == 404
     assert response.json() == {
@@ -73,14 +79,14 @@ def test_get_analytics_not_found(client):
     }
 
 
-def test_sync_user_analytics_creates_record(client):
+async def test_sync_user_analytics_creates_record(client):
     payload = {
         "username": "alice",
         "total_todos": 13,
         "completed_todos": 1,
     }
 
-    response = client.post("/analytics/user/1/sync", json=payload)
+    response = await client.post("/analytics/user/1/sync", json=payload)
 
     assert response.status_code == 200
 
@@ -96,16 +102,16 @@ def test_sync_user_analytics_creates_record(client):
     assert data["updated_at"] is not None
 
 
-def test_get_user_analytics_returns_existing_record(client):
+async def test_get_user_analytics_returns_existing_record(client):
     payload = {
         "username": "alice",
         "total_todos": 10,
         "completed_todos": 5,
     }
 
-    client.post("/analytics/user/1/sync", json=payload)
+    await client.post("/analytics/user/1/sync", json=payload)
 
-    response = client.get("/analytics/user/1")
+    response = await client.get("/analytics/user/1")
 
     assert response.status_code == 200
 
@@ -118,7 +124,7 @@ def test_get_user_analytics_returns_existing_record(client):
     assert data["completion_rate_percent"] == 50.0
 
 
-def test_sync_user_analytics_updates_existing_record(client):
+async def test_sync_user_analytics_updates_existing_record(client):
     initial_payload = {
         "username": "alice",
         "total_todos": 10,
@@ -131,8 +137,14 @@ def test_sync_user_analytics_updates_existing_record(client):
         "completed_todos": 3,
     }
 
-    first_response = client.post("/analytics/user/1/sync", json=initial_payload)
-    second_response = client.post("/analytics/user/1/sync", json=updated_payload)
+    first_response = await client.post(
+        "/analytics/user/1/sync",
+        json=initial_payload,
+    )
+    second_response = await client.post(
+        "/analytics/user/1/sync",
+        json=updated_payload,
+    )
 
     assert first_response.status_code == 200
     assert second_response.status_code == 200
@@ -148,14 +160,14 @@ def test_sync_user_analytics_updates_existing_record(client):
     assert second_data["completion_rate_percent"] == 25.0
 
 
-def test_sync_user_analytics_with_zero_todos(client):
+async def test_sync_user_analytics_with_zero_todos(client):
     payload = {
         "username": "alice",
         "total_todos": 0,
         "completed_todos": 0,
     }
 
-    response = client.post("/analytics/user/1/sync", json=payload)
+    response = await client.post("/analytics/user/1/sync", json=payload)
 
     assert response.status_code == 200
 
