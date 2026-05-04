@@ -86,7 +86,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://todo_user:secure_password_123@postgres:5432/todo_db
+      DATABASE_URL: postgresql+asyncpg://todo_user:secure_password_123@postgres:5432/todo_db
       REDIS_HOST: redis
       REDIS_PORT: 6379
       RABBITMQ_HOST: rabbitmq

@@ -1,17 +1,24 @@
-from sqlalchemy.orm import Session
+import logging
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from todo_service.app.models import TodoItem, User
 from todo_service.app.schemas import TodoItemCreate, TodoItemUpdate
-from todo_service.app.services.rabbitmq_producer import producer
 from todo_service.app.services.cache_service import cache_service
-import logging
+from todo_service.app.services.rabbitmq_producer import producer
+
 
 logger = logging.getLogger(__name__)
+
 
 class TodoService:
     """Сервіс для роботи з завданнями"""
 
     @staticmethod
-    def create_todo(db: Session, todo: TodoItemCreate, user: User) -> TodoItem:
+    async def create_todo(
+        db: AsyncSession,
+        todo: TodoItemCreate,
+        user: User,
+    ) -> TodoItem:
         """Створюємо завдання"""
         db_todo = TodoItem(
             title=todo.title,
@@ -22,8 +29,8 @@ class TodoService:
         )
 
         db.add(db_todo)
-        db.commit()
-        db.refresh(db_todo)
+        await db.commit()
+        await db.refresh(db_todo)
 
         # Інвалідуємо кеш списку задач користувача
         cache_service.delete(f"user:{user.id}:todos")
@@ -59,32 +66,50 @@ class TodoService:
         }
 
     @staticmethod
-    def get_user_todos(db: Session, user: User) -> list[dict]:
+    async def get_user_todos(
+        db: AsyncSession,
+        user: User,
+    ) -> list[dict]:
         """Отримуємо завдання користувача з кешем"""
         cache_key = f"user:{user.id}:todos"
         cached_todos = cache_service.get(cache_key)
         if cached_todos:
             return cached_todos
 
-        todos = db.query(TodoItem).filter(
-            TodoItem.owner_id == user.id
-        ).order_by(TodoItem.created_at.desc()).all()
+        result = await db.execute(
+            select(TodoItem)
+            .where(TodoItem.owner_id == user.id)
+            .order_by(TodoItem.created_at.desc())
+        )
+
+        todos = result.scalars().all()
+
         serialized_todos = [TodoService._serialize_todo(t) for t in todos]
         cache_service.set(cache_key, serialized_todos, ttl=300)
 
         return serialized_todos
 
     @staticmethod
-    def get_todo_by_id(db: Session, todo_id: int, user: User) -> dict | None:
+    async def get_todo_by_id(
+        db: AsyncSession,
+        todo_id: int,
+        user: User,
+    ) -> dict | None:
         """Отримуємо завдання з кешем для read-only сценарію"""
         cache_key = f"todo:{todo_id}:user:{user.id}"
         cached_todo = cache_service.get(cache_key)
         if cached_todo:
             return cached_todo
-        todo = db.query(TodoItem).filter(
-            (TodoItem.id == todo_id) &
-            (TodoItem.owner_id == user.id)
-        ).first()
+
+        result = await db.execute(
+            select(TodoItem).where(
+                TodoItem.id == todo_id,
+                TodoItem.owner_id == user.id,
+            )
+        )
+
+        todo = result.scalar_one_or_none()
+
         if todo:
             serialized = TodoService._serialize_todo(todo)
             cache_service.set(cache_key, serialized, ttl=300)
@@ -93,15 +118,27 @@ class TodoService:
         return None
 
     @staticmethod
-    def get_todo_orm_by_id(db: Session, todo_id: int, user: User) -> TodoItem | None:
+    async def get_todo_orm_by_id(
+        db: AsyncSession,
+        todo_id: int,
+        user: User,
+    ) -> TodoItem | None:
         """Отримуємо ORM-об'єкт із БД для update/delete"""
-        return db.query(TodoItem).filter(
-            (TodoItem.id == todo_id) &
-            (TodoItem.owner_id == user.id)
-        ).first()
+        result = await db.execute(
+            select(TodoItem).where(
+                TodoItem.id == todo_id,
+                TodoItem.owner_id == user.id,
+            )
+        )
+
+        return result.scalar_one_or_none()
 
     @staticmethod
-    def update_todo(db: Session, todo: TodoItem, update_data: TodoItemUpdate) -> TodoItem:
+    async def update_todo(
+        db: AsyncSession,
+        todo: TodoItem,
+        update_data: TodoItemUpdate,
+    ) -> TodoItem:
         """Оновлюємо завдання і інвалідуємо кеш"""
 
         was_completed = todo.completed
@@ -115,8 +152,8 @@ class TodoService:
         if update_data.priority is not None:
             todo.priority = update_data.priority
 
-        db.commit()
-        db.refresh(todo)
+        await db.commit()
+        await db.refresh(todo)
 
         cache_service.delete(f"todo:{todo.id}:user:{todo.owner_id}")
         cache_service.delete(f"user:{todo.owner_id}:todos")
@@ -139,15 +176,17 @@ class TodoService:
         return todo
 
     @staticmethod
-    def delete_todo(db: Session, todo: TodoItem) -> None:
+    async def delete_todo(
+        db: AsyncSession,
+        todo: TodoItem,
+    ) -> None:
         """Видаляємо завдання та інвалідуємо кеш"""
         user_id = todo.owner_id
         todo_id = todo.id
 
-        db.delete(todo)
-        db.commit()
+        await db.delete(todo)
+        await db.commit()
 
         # Видаляємо з кеша
         cache_service.delete(f"todo:{todo_id}:user:{user_id}")
         cache_service.delete(f"user:{user_id}:todos")
-

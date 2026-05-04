@@ -4,21 +4,25 @@ from sqlalchemy import pool
 from alembic import context
 import os
 from dotenv import load_dotenv
+from todo_service.app.database import Base
 
 # Завантажуємо конфіг
 load_dotenv()
 
-from todo_service.app.database import Base
-from todo_service.app.models import User, TodoItem  # Імпортуємо моделі
-
 config = context.config
 
 # Встановлюємо URL БД з .env
-sqlalchemy_url = os.getenv(
+database_url = os.getenv(
     "DATABASE_URL",
-    "postgresql://todo_user:password123@localhost:5432/todo_db"
+    "postgresql://todo_user:secure_password_123@localhost:5432/todo_db",
 )
-config.set_main_option("sqlalchemy.url", sqlalchemy_url)
+
+database_url = database_url.replace(
+    "postgresql+asyncpg://",
+    "postgresql://",
+)
+
+config.set_main_option("sqlalchemy.url", database_url)
 
 # Налаштування логування
 if config.config_file_name is not None:

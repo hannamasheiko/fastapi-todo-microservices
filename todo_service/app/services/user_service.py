@@ -1,4 +1,5 @@
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from todo_service.app.models import User
 from todo_service.app.schemas import UserCreate
 from todo_service.app.security import get_password_hash, verify_password
@@ -31,18 +32,27 @@ class UserService:
         )
 
     @staticmethod
-    def create_user(db: Session, user: UserCreate) -> User:
+    async def create_user(db: AsyncSession, user: UserCreate) -> User:
         """Створюємо нового користувача"""
-        # Перевіряємо унікальність
-        if db.query(User).filter(User.username == user.username).first():
+
+        username_result = await db.execute(
+            select(User).where(User.username == user.username)
+        )
+        existing_username = username_result.scalar_one_or_none()
+
+        if existing_username:
             raise ValueError("Username already exists")
-        if db.query(User).filter(User.email == user.email).first():
+
+        email_result = await db.execute(
+            select(User).where(User.email == user.email)
+        )
+        existing_email = email_result.scalar_one_or_none()
+
+        if existing_email:
             raise ValueError("Email already exists")
 
-        # Хешуємо пароль
         hashed_password = get_password_hash(user.password)
 
-        # Створюємо користувача
         db_user = User(
             username=user.username,
             email=user.email,
@@ -50,15 +60,24 @@ class UserService:
         )
 
         db.add(db_user)
-        db.commit()
-        db.refresh(db_user)
+
+        await db.commit()
+        await db.refresh(db_user)
 
         return db_user
 
     @staticmethod
-    def authenticate_user(db: Session, username: str, password: str) -> User | None:
+    async def authenticate_user(
+        db: AsyncSession,
+        username: str,
+        password: str,
+    ) -> User | None:
         """Перевіряємо credentials"""
-        user = db.query(User).filter(User.username == username).first()
+
+        result = await db.execute(
+            select(User).where(User.username == username)
+        )
+        user = result.scalar_one_or_none()
 
         if not user:
             return None
@@ -69,7 +88,10 @@ class UserService:
         return user
 
     @staticmethod
-    def get_user_by_username(db: Session, username: str) -> User | None:
+    async def get_user_by_username(
+        db: AsyncSession,
+        username: str,
+    ) -> User | None:
         """Отримуємо користувача за username з кешем"""
         cache_key = f"user:username:{username}"
 
@@ -77,16 +99,21 @@ class UserService:
         if cached_user:
             return UserService._deserialize_user(cached_user)
 
-        user = db.query(User).filter(User.username == username).first()
+        result = await db.execute(
+            select(User).where(User.username == username)
+        )
+        user = result.scalar_one_or_none()
 
         if user:
             cache_service.set(cache_key, UserService._serialize_user(user))
 
         return user
 
-
     @staticmethod
-    def get_user_by_id(db: Session, user_id: int) -> User | None:
+    async def get_user_by_id(
+        db: AsyncSession,
+        user_id: int,
+    ) -> User | None:
         """Отримуємо користувача за ID з кешем"""
         cache_key = f"user:id:{user_id}"
 
@@ -94,7 +121,10 @@ class UserService:
         if cached_user:
             return UserService._deserialize_user(cached_user)
 
-        user = db.query(User).filter(User.id == user_id).first()
+        result = await db.execute(
+            select(User).where(User.id == user_id)
+        )
+        user = result.scalar_one_or_none()
 
         if user:
             cache_service.set(cache_key, UserService._serialize_user(user))
@@ -102,6 +132,14 @@ class UserService:
         return user
 
     @staticmethod
-    def get_user_by_username_db(db: Session, username: str) -> User | None:
+    async def get_user_by_username_db(
+        db: AsyncSession,
+        username: str,
+    ) -> User | None:
         """Отримуємо користувача за username напряму з БД без кешу"""
-        return db.query(User).filter(User.username == username).first()
+
+        result = await db.execute(
+            select(User).where(User.username == username)
+        )
+
+        return result.scalar_one_or_none()
