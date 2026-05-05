@@ -114,7 +114,7 @@ services:
     ports:
       - "8002:8000"
     environment:
-      NOTIFICATION_DATABASE_URL: postgresql://notification_user:notification_password_123@notification_postgres:5432/notification_db
+      NOTIFICATION_DATABASE_URL: postgresql+asyncpg://notification_user:notification_password_123@notification_postgres:5432/notification_db
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: guest

@@ -39,11 +39,12 @@ target_metadata = Base.metadata
 # ---------------------------------------------------------
 # Database URL
 # ---------------------------------------------------------
-
-config.set_main_option(
-    "sqlalchemy.url",
-    settings.notification_database_url,
+database_url = settings.notification_database_url.replace(
+    "postgresql+asyncpg://",
+    "postgresql://",
 )
+
+config.set_main_option("sqlalchemy.url", database_url)
 
 
 def run_migrations_offline() -> None:

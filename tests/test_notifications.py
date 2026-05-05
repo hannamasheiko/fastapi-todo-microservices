@@ -1,15 +1,13 @@
 import os
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 
-os.environ.setdefault(
-    "NOTIFICATION_DATABASE_URL",
-    "postgresql://notification_user:notification_password_123@localhost:5434/notification_db",
+os.environ["NOTIFICATION_DATABASE_URL"] = (
+    "postgresql+asyncpg://notification_user:notification_password_123@localhost:5434/notification_db"
 )
 
 
@@ -18,56 +16,65 @@ from notification_service.app.database import get_db
 from notification_service.app.models import Base, Notification
 
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+pytestmark = pytest.mark.anyio
 
 
-engine = create_engine(
+SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+
+engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
 )
 
 
-TestingSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
+TestingSessionLocal = async_sessionmaker(
     bind=engine,
+    autoflush=False,
+    expire_on_commit=False,
 )
 
 
 @pytest.fixture()
-def db_session():
-    Base.metadata.create_all(bind=engine)
-
-    db = TestingSessionLocal()
-
-    try:
-        yield db
-    finally:
-        db.close()
-        Base.metadata.drop_all(bind=engine)
+def anyio_backend():
+    return "asyncio"
 
 
 @pytest.fixture()
-def client(db_session, monkeypatch):
+async def db_session():
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    async with TestingSessionLocal() as session:
+        yield session
+
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
+
+
+@pytest.fixture()
+async def client(db_session, monkeypatch):
     monkeypatch.setattr(notification_main, "start_consumers", lambda: None)
 
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
+    async def override_get_db():
+        yield db_session
 
     notification_main.app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(notification_main.app) as test_client:
+    transport = ASGITransport(app=notification_main.app)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as test_client:
         yield test_client
 
     notification_main.app.dependency_overrides.clear()
 
 
-def test_notification_health_check(client):
-    response = client.get("/health")
+async def test_notification_health_check(client):
+    response = await client.get("/health")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -76,14 +83,14 @@ def test_notification_health_check(client):
     }
 
 
-def test_get_user_notifications_returns_empty_list(client):
-    response = client.get("/notifications/user/1")
+async def test_get_user_notifications_returns_empty_list(client):
+    response = await client.get("/notifications/user/1")
 
     assert response.status_code == 200
     assert response.json() == []
 
 
-def test_get_user_notifications_returns_existing_notifications(client, db_session):
+async def test_get_user_notifications_returns_existing_notifications(client, db_session):
     notification = Notification(
         user_id=1,
         title="Saved notification",
@@ -93,10 +100,10 @@ def test_get_user_notifications_returns_existing_notifications(client, db_sessio
     )
 
     db_session.add(notification)
-    db_session.commit()
-    db_session.refresh(notification)
+    await db_session.commit()
+    await db_session.refresh(notification)
 
-    response = client.get("/notifications/user/1")
+    response = await client.get("/notifications/user/1")
 
     assert response.status_code == 200
 
@@ -112,7 +119,7 @@ def test_get_user_notifications_returns_existing_notifications(client, db_sessio
     assert data[0]["created_at"] is not None
 
 
-def test_get_user_notifications_filters_by_user_id(client, db_session):
+async def test_get_user_notifications_filters_by_user_id(client, db_session):
     first_notification = Notification(
         user_id=1,
         title="User 1 notification",
@@ -130,9 +137,9 @@ def test_get_user_notifications_filters_by_user_id(client, db_session):
     )
 
     db_session.add_all([first_notification, second_notification])
-    db_session.commit()
+    await db_session.commit()
 
-    response = client.get("/notifications/user/1")
+    response = await client.get("/notifications/user/1")
 
     assert response.status_code == 200
 
