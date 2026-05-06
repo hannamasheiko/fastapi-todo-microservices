@@ -95,7 +95,7 @@ class UserService:
         """Отримуємо користувача за username з кешем"""
         cache_key = f"user:username:{username}"
 
-        cached_user = cache_service.get(cache_key)
+        cached_user = await cache_service.get(cache_key)
         if cached_user:
             return UserService._deserialize_user(cached_user)
 
@@ -105,7 +105,7 @@ class UserService:
         user = result.scalar_one_or_none()
 
         if user:
-            cache_service.set(cache_key, UserService._serialize_user(user))
+            await cache_service.set(cache_key, UserService._serialize_user(user))
 
         return user
 
@@ -117,7 +117,7 @@ class UserService:
         """Отримуємо користувача за ID з кешем"""
         cache_key = f"user:id:{user_id}"
 
-        cached_user = cache_service.get(cache_key)
+        cached_user = await cache_service.get(cache_key)
         if cached_user:
             return UserService._deserialize_user(cached_user)
 
@@ -127,7 +127,7 @@ class UserService:
         user = result.scalar_one_or_none()
 
         if user:
-            cache_service.set(cache_key, UserService._serialize_user(user))
+            await cache_service.set(cache_key, UserService._serialize_user(user))
 
         return user
 

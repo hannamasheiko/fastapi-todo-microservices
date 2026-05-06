@@ -33,7 +33,7 @@ class TodoService:
         await db.refresh(db_todo)
 
         # Інвалідуємо кеш списку задач користувача
-        cache_service.delete(f"user:{user.id}:todos")
+        await cache_service.delete(f"user:{user.id}:todos")
 
         # Відправляємо повідомлення в RabbitMQ
         try:
@@ -72,7 +72,7 @@ class TodoService:
     ) -> list[dict]:
         """Отримуємо завдання користувача з кешем"""
         cache_key = f"user:{user.id}:todos"
-        cached_todos = cache_service.get(cache_key)
+        cached_todos = await cache_service.get(cache_key)
         if cached_todos:
             return cached_todos
 
@@ -85,7 +85,7 @@ class TodoService:
         todos = result.scalars().all()
 
         serialized_todos = [TodoService._serialize_todo(t) for t in todos]
-        cache_service.set(cache_key, serialized_todos, ttl=300)
+        await cache_service.set(cache_key, serialized_todos, ttl=300)
 
         return serialized_todos
 
@@ -97,7 +97,7 @@ class TodoService:
     ) -> dict | None:
         """Отримуємо завдання з кешем для read-only сценарію"""
         cache_key = f"todo:{todo_id}:user:{user.id}"
-        cached_todo = cache_service.get(cache_key)
+        cached_todo = await cache_service.get(cache_key)
         if cached_todo:
             return cached_todo
 
@@ -112,7 +112,7 @@ class TodoService:
 
         if todo:
             serialized = TodoService._serialize_todo(todo)
-            cache_service.set(cache_key, serialized, ttl=300)
+            await cache_service.set(cache_key, serialized, ttl=300)
             return serialized
 
         return None
@@ -155,8 +155,8 @@ class TodoService:
         await db.commit()
         await db.refresh(todo)
 
-        cache_service.delete(f"todo:{todo.id}:user:{todo.owner_id}")
-        cache_service.delete(f"user:{todo.owner_id}:todos")
+        await cache_service.delete(f"todo:{todo.id}:user:{todo.owner_id}")
+        await cache_service.delete(f"user:{todo.owner_id}:todos")
 
         if not was_completed and todo.completed:
             try:
@@ -188,5 +188,5 @@ class TodoService:
         await db.commit()
 
         # Видаляємо з кеша
-        cache_service.delete(f"todo:{todo_id}:user:{user_id}")
-        cache_service.delete(f"user:{user_id}:todos")
+        await cache_service.delete(f"todo:{todo_id}:user:{user_id}")
+        await cache_service.delete(f"user:{user_id}:todos")
