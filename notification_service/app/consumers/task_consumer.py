@@ -1,9 +1,12 @@
-import asyncio
 import json
 import logging
+
+from aio_pika.abc import AbstractIncomingMessage
+
 from notification_service.app.database import AsyncSessionLocal
 from notification_service.app.models import Notification
 from notification_service.app.services.rabbitmq_consumer import RabbitMQConsumer
+
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +17,7 @@ async def create_notification(
     message: str,
     notification_type: str,
 ) -> None:
-    """Create notification record in notification_db."""
+    """Створюємо запис повідомлення в notification_db."""
 
     async with AsyncSessionLocal() as db:
         try:
@@ -47,82 +50,77 @@ async def create_notification(
             raise
 
 
-def task_completed_handler(ch, method, properties, body):
-    """Handle task:completed event."""
+async def task_completed_handler(message: AbstractIncomingMessage) -> None:
+    """Обробляємо подію task:completed."""
 
     try:
-        message = json.loads(body)
-        logger.info("Received task_completed event: %s", message)
+        payload = json.loads(message.body.decode("utf-8"))
+        logger.info("Received task_completed event: %s", payload)
 
-        user_id = message.get("user_id")
-        task_title = message.get("title")
+        user_id = payload.get("user_id")
+        task_title = payload.get("title")
 
         if user_id is None or not task_title:
-            raise ValueError(f"Invalid task_completed payload: {message}")
+            raise ValueError(f"Invalid task_completed payload: {payload}")
 
-        asyncio.run(
-            create_notification(
-                user_id=user_id,
-                title="Завдання виконане! ✅",
-                message=f'Ви виконали завдання: "{task_title}"',
-                notification_type="success",
-            )
+        await create_notification(
+            user_id=user_id,
+            title="Завдання виконане! ✅",
+            message=f'Ви виконали завдання: "{task_title}"',
+            notification_type="success",
         )
 
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+        await message.ack()
 
     except Exception as exc:
         logger.error("Error processing task_completed message: %s", repr(exc))
-        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        await message.reject(requeue=False)
 
 
-def task_created_handler(ch, method, properties, body):
-    """Handle task:created event."""
+async def task_created_handler(message: AbstractIncomingMessage) -> None:
+    """Обробляємо подію task:created."""
 
     try:
-        message = json.loads(body)
-        logger.info("Received task_created event: %s", message)
+        payload = json.loads(message.body.decode("utf-8"))
+        logger.info("Received task_created event: %s", payload)
 
-        user_id = message.get("user_id")
-        task_title = message.get("title")
+        user_id = payload.get("user_id")
+        task_title = payload.get("title")
 
         if user_id is None or not task_title:
-            raise ValueError(f"Invalid task_created payload: {message}")
+            raise ValueError(f"Invalid task_created payload: {payload}")
 
-        asyncio.run(
-            create_notification(
-                user_id=user_id,
-                title="Нове завдання",
-                message=f'Ви створили завдання: "{task_title}"',
-                notification_type="info",
-            )
+        await create_notification(
+            user_id=user_id,
+            title="Нове завдання",
+            message=f'Ви створили завдання: "{task_title}"',
+            notification_type="info",
         )
 
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+        await message.ack()
 
     except Exception as exc:
         logger.error("Error processing task_created message: %s", repr(exc))
-        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        await message.reject(requeue=False)
 
 
-def start_consumers():
-    """Start RabbitMQ consumers."""
-    import threading
+async def start_consumers() -> RabbitMQConsumer:
+    """Запускаємо RabbitMQ consumers."""
 
-    def run_completed_consumer():
-        consumer = RabbitMQConsumer()
-        consumer.declare_queue("task:completed")
-        consumer.consume("task:completed", task_completed_handler)
+    consumer = RabbitMQConsumer()
 
-    def run_created_consumer():
-        consumer = RabbitMQConsumer()
-        consumer.declare_queue("task:created")
-        consumer.consume("task:created", task_created_handler)
+    await consumer.connect()
 
-    thread1 = threading.Thread(target=run_completed_consumer, daemon=True)
-    thread2 = threading.Thread(target=run_created_consumer, daemon=True)
+    await consumer.consume(
+        "task:completed",
+        task_completed_handler,
+    )
 
-    thread1.start()
-    thread2.start()
+    await consumer.consume(
+        "task:created",
+        task_created_handler,
+    )
 
-    logger.info("RabbitMQ consumer threads started")
+    logger.info("RabbitMQ consumers started")
+
+    return consumer

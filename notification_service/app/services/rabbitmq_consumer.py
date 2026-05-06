@@ -1,110 +1,116 @@
-import pika
 import logging
-import time
-from typing import Callable
+from collections.abc import Awaitable, Callable
+
+import aio_pika
+from aio_pika.abc import AbstractIncomingMessage, AbstractRobustQueue
+
 from notification_service.app.config import settings
+
 
 logger = logging.getLogger(__name__)
 
 
-class RabbitMQConsumer:
-    """Консюмер для отримання повідомлень з RabbitMQ"""
+MessageHandler = Callable[[AbstractIncomingMessage], Awaitable[None]]
 
-    def __init__(self, host: str = None, port: int = None):
-        """Ініціалізація"""
+
+class RabbitMQConsumer:
+    """Асинхронний консюмер для отримання повідомлень з RabbitMQ."""
+
+    def __init__(self, host: str | None = None, port: int | None = None):
+        """Ініціалізація параметрів підключення."""
         self.host = host or settings.rabbitmq_host
         self.port = port or settings.rabbitmq_port
-        self.connection = None
-        self.channel = None
+        self.connection: aio_pika.RobustConnection | None = None
+        self.channel: aio_pika.RobustChannel | None = None
+        self.queues: dict[str, AbstractRobustQueue] = {}
 
-    def connect(self):
-        """Підключаємось до RabbitMQ"""
+    async def connect(self) -> None:
+        """Підключаємось до RabbitMQ."""
         try:
-            credentials = pika.PlainCredentials(
-                settings.rabbitmq_user,
-                settings.rabbitmq_password
-            )
-            parameters = pika.ConnectionParameters(
+            self.connection = await aio_pika.connect_robust(
                 host=self.host,
                 port=self.port,
-                credentials=credentials,
+                login=settings.rabbitmq_user,
+                password=settings.rabbitmq_password,
                 heartbeat=600,
-                blocked_connection_timeout=300
+                timeout=10,
             )
-            self.connection = pika.BlockingConnection(parameters)
-            self.channel = self.connection.channel()
+
+            self.channel = await self.connection.channel()
+            await self.channel.set_qos(prefetch_count=1)
+
             logger.info("Consumer connected to RabbitMQ")
+
         except Exception as e:
-            logger.error(f"Failed to connect to RabbitMQ: {repr(e)}")
+            logger.error("Failed to connect to RabbitMQ: %s", repr(e))
             raise
 
     def is_connected(self) -> bool:
-        """Перевіряємо, що connection і channel живі"""
+        """Перевіряємо, що connection і channel живі."""
         return (
             self.connection is not None
             and self.channel is not None
-            and self.connection.is_open
-            and self.channel.is_open
+            and not self.connection.is_closed
+            and not self.channel.is_closed
         )
 
-    def ensure_connection(self):
-        """Гарантуємо активне з'єднання з RabbitMQ"""
+    async def ensure_connection(self) -> None:
+        """Гарантуємо активне з'єднання з RabbitMQ."""
         if not self.is_connected():
-            logger.warning("RabbitMQ consumer connection/channel is closed. Reconnecting...")
-            self.close()
-            self.connect()
+            logger.warning(
+                "RabbitMQ consumer connection/channel is closed. Reconnecting..."
+            )
+            await self.close()
+            await self.connect()
 
-    def declare_queue(self, queue_name: str, durable: bool = True):
-        """Декларуємо чергу"""
-        self.ensure_connection()
+    async def declare_queue(
+        self,
+        queue_name: str,
+        durable: bool = True,
+    ) -> AbstractRobustQueue:
+        """Декларуємо чергу."""
+        await self.ensure_connection()
 
-        self.channel.queue_declare(
-            queue=queue_name,
+        queue = await self.channel.declare_queue(
+            name=queue_name,
             durable=durable,
-            auto_delete=False
+            auto_delete=False,
         )
-        logger.info(f"Queue '{queue_name}' declared")
 
-    def consume(self, queue_name: str, callback: Callable):
-        """
-        Слухаємо чергу і обробляємо повідомлення.
-        Якщо connection падає — намагаємось перепідключитися і продовжити.
-        """
-        while True:
-            try:
-                self.ensure_connection()
-                self.declare_queue(queue_name)
+        self.queues[queue_name] = queue
 
-                self.channel.basic_qos(prefetch_count=1)
-                self.channel.basic_consume(
-                    queue=queue_name,
-                    on_message_callback=callback,
-                    auto_ack=False
-                )
+        logger.info("Queue '%s' declared", queue_name)
 
-                logger.info(f"Started consuming from queue: {queue_name}")
-                self.channel.start_consuming()
+        return queue
 
-            except Exception as e:
-                logger.error(f"Consumer error on queue '{queue_name}': {repr(e)}")
-                self.close()
-                time.sleep(5)
-                logger.info(f"Retrying consumer connection for queue '{queue_name}'...")
+    async def consume(
+        self,
+        queue_name: str,
+        callback: MessageHandler,
+    ) -> None:
+        """Слухаємо чергу і передаємо повідомлення в async callback."""
+        queue = await self.declare_queue(queue_name)
 
-    def close(self):
-        """Закриваємо з'єднання"""
+        await queue.consume(callback, no_ack=False)
+
+        logger.info("Started consuming from queue: %s", queue_name)
+
+    async def close(self) -> None:
+        """Закриваємо з'єднання."""
         try:
-            if self.channel and self.channel.is_open:
-                self.channel.close()
+            if self.channel and not self.channel.is_closed:
+                await self.channel.close()
         except Exception:
             pass
 
         try:
-            if self.connection and self.connection.is_open:
-                self.connection.close()
+            if self.connection and not self.connection.is_closed:
+                await self.connection.close()
         except Exception:
             pass
 
+        self.queues = {}
         self.channel = None
         self.connection = None
+
         logger.info("Closed RabbitMQ consumer connection")
