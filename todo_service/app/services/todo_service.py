@@ -37,7 +37,7 @@ class TodoService:
 
         # Відправляємо повідомлення в RabbitMQ
         try:
-            producer.publish_message(
+            await producer.publish_message(
                 queue_name="task:created",
                 message={
                     "event": "task_created",
@@ -160,7 +160,7 @@ class TodoService:
 
         if not was_completed and todo.completed:
             try:
-                producer.publish_message(
+                await producer.publish_message(
                     queue_name="task:completed",
                     message={
                         "event": "task_completed",

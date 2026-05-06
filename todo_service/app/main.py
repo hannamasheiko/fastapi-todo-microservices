@@ -17,16 +17,16 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Ініціалізація ресурсів при старті застосунку."""
     try:
-        producer.connect()
-        producer.declare_queue("task:created")
-        producer.declare_queue("task:completed")
+        await producer.connect()
+        await producer.declare_queue("task:created")
+        await producer.declare_queue("task:completed")
     except Exception as e:
         logger.error("RabbitMQ startup init failed: %s", e)
 
     yield
 
     try:
-        producer.close()
+        await producer.close()
     except Exception:
         pass
 
