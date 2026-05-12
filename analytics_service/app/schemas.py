@@ -19,7 +19,9 @@ class UserAnalyticsSchema(BaseModel):
     username: str | None = None
     total_todos: int
     completed_todos: int
-    completion_rate_percent: float = Field(description="Percentage of completed todos, rounded to 2 decimal places")
+    completion_rate_percent: float = Field(
+        description="Percentage of completed todos, rounded to 2 decimal places"
+    )
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

@@ -11,7 +11,6 @@ from analytics_service.app.schemas import (
     UserAnalyticsSyncSchema,
 )
 
-
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 

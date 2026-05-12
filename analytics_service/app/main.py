@@ -5,7 +5,7 @@ from analytics_service.app.views import router
 app = FastAPI(
     title="Analytics Service",
     description="Мікросервіс аналітики для Todo API",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 app.add_middleware(
@@ -23,9 +23,11 @@ app.add_middleware(
 
 app.include_router(router)
 
+
 @app.get("/", tags=["Health"])
 def read_root():
     return {"message": "Analytics Service is running!"}
+
 
 @app.get("/health", tags=["Health"])
 def health_check():

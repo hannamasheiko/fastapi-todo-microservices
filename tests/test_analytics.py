@@ -7,7 +7,6 @@ from analytics_service.app.database import get_db
 from analytics_service.app.main import app
 from analytics_service.app.models import Base
 
-
 pytestmark = pytest.mark.anyio
 
 SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
