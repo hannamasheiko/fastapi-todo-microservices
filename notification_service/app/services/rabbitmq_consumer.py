@@ -6,7 +6,6 @@ from aio_pika.abc import AbstractIncomingMessage, AbstractRobustQueue
 
 from notification_service.app.config import settings
 
-
 logger = logging.getLogger(__name__)
 
 

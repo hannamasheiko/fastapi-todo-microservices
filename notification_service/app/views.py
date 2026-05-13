@@ -11,7 +11,6 @@ from notification_service.app.schemas import (
     NotificationResponseSchema,
 )
 
-
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 

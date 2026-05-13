@@ -45,6 +45,7 @@ app.include_router(router)
 def read_root():
     return {"message": "Notification Service is running!"}
 
+
 @app.get("/health", tags=["Health"])
 def health_check():
     return {"status": "healthy", "service": "notifications"}

@@ -5,7 +5,6 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-
 os.environ["NOTIFICATION_DATABASE_URL"] = (
     "postgresql+asyncpg://notification_user:notification_password_123@localhost:5434/notification_db"
 )
@@ -14,7 +13,6 @@ os.environ["NOTIFICATION_DATABASE_URL"] = (
 from notification_service.app import main as notification_main
 from notification_service.app.database import get_db
 from notification_service.app.models import Base, Notification
-
 
 pytestmark = pytest.mark.anyio
 
@@ -90,7 +88,9 @@ async def test_get_user_notifications_returns_empty_list(client):
     assert response.json() == []
 
 
-async def test_get_user_notifications_returns_existing_notifications(client, db_session):
+async def test_get_user_notifications_returns_existing_notifications(
+    client, db_session
+):
     notification = Notification(
         user_id=1,
         title="Saved notification",

@@ -7,7 +7,6 @@ from notification_service.app.database import AsyncSessionLocal
 from notification_service.app.models import Notification
 from notification_service.app.services.rabbitmq_consumer import RabbitMQConsumer
 
-
 logger = logging.getLogger(__name__)
 
 
