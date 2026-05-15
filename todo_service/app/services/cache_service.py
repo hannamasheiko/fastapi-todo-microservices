@@ -6,7 +6,6 @@ import redis.asyncio as redis
 
 from todo_service.app.config import settings
 
-
 logger = logging.getLogger(__name__)
 
 

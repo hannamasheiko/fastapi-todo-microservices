@@ -2,12 +2,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 from pathlib import Path
 
-
 load_dotenv()
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 ENV_FILE = BASE_DIR / ".env"
+
 
 class Settings(BaseSettings):
     """Конфігурація додатку"""
@@ -42,10 +42,7 @@ class Settings(BaseSettings):
     analytics_service_url: str = "http://localhost:8001"
     notification_service_url: str = "http://localhost:8002"
 
-    model_config = SettingsConfigDict(
-        env_file=ENV_FILE,
-        extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
 
 settings = Settings()

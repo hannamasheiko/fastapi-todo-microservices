@@ -43,9 +43,7 @@ class UserService:
         if existing_username:
             raise ValueError("Username already exists")
 
-        email_result = await db.execute(
-            select(User).where(User.email == user.email)
-        )
+        email_result = await db.execute(select(User).where(User.email == user.email))
         existing_email = email_result.scalar_one_or_none()
 
         if existing_email:
@@ -54,9 +52,7 @@ class UserService:
         hashed_password = get_password_hash(user.password)
 
         db_user = User(
-            username=user.username,
-            email=user.email,
-            hashed_password=hashed_password
+            username=user.username, email=user.email, hashed_password=hashed_password
         )
 
         db.add(db_user)
@@ -74,9 +70,7 @@ class UserService:
     ) -> User | None:
         """Перевіряємо credentials"""
 
-        result = await db.execute(
-            select(User).where(User.username == username)
-        )
+        result = await db.execute(select(User).where(User.username == username))
         user = result.scalar_one_or_none()
 
         if not user:
@@ -99,9 +93,7 @@ class UserService:
         if cached_user:
             return UserService._deserialize_user(cached_user)
 
-        result = await db.execute(
-            select(User).where(User.username == username)
-        )
+        result = await db.execute(select(User).where(User.username == username))
         user = result.scalar_one_or_none()
 
         if user:
@@ -121,9 +113,7 @@ class UserService:
         if cached_user:
             return UserService._deserialize_user(cached_user)
 
-        result = await db.execute(
-            select(User).where(User.id == user_id)
-        )
+        result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
 
         if user:
@@ -138,8 +128,6 @@ class UserService:
     ) -> User | None:
         """Отримуємо користувача за username напряму з БД без кешу"""
 
-        result = await db.execute(
-            select(User).where(User.username == username)
-        )
+        result = await db.execute(select(User).where(User.username == username))
 
         return result.scalar_one_or_none()

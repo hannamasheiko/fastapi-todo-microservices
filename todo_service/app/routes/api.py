@@ -5,7 +5,6 @@ from todo_service.app.config import settings
 from todo_service.app.views.auth import router as auth_router
 from todo_service.app.views.todos import router as todos_router
 
-
 # Основний API роутер
 api_router = APIRouter(prefix="/api/v1")
 

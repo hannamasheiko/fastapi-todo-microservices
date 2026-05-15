@@ -15,7 +15,6 @@ from todo_service.app.database import Base, get_db
 from todo_service.app.main import app
 from sqlalchemy.pool import NullPool
 
-
 engine = create_async_engine(
     TEST_DATABASE_URL,
     pool_pre_ping=True,

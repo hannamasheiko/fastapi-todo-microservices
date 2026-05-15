@@ -5,6 +5,7 @@ from todo_service.app.database import Base
 
 class TodoItem(Base):
     """Модель завдання"""
+
     __tablename__ = "todo_items"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -14,7 +15,9 @@ class TodoItem(Base):
     priority = Column(Integer, default=0)  # 0=low, 1=medium, 2=high
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     # Зв'язок з користувачем
     owner = relationship("User", back_populates="todos")

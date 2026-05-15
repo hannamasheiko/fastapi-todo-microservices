@@ -6,7 +6,6 @@ from todo_service.app.schemas import TodoItemCreate, TodoItemUpdate
 from todo_service.app.services.cache_service import cache_service
 from todo_service.app.services.rabbitmq_producer import producer
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -25,7 +24,7 @@ class TodoService:
             description=todo.description,
             completed=todo.completed,
             priority=todo.priority,
-            owner_id=user.id
+            owner_id=user.id,
         )
 
         db.add(db_todo)
@@ -45,8 +44,8 @@ class TodoService:
                     "username": user.username,
                     "task_id": db_todo.id,
                     "title": db_todo.title,
-                    "timestamp": db_todo.created_at.isoformat()
-                }
+                    "timestamp": db_todo.created_at.isoformat(),
+                },
             )
         except Exception as e:
             logger.error(f"RabbitMQ publish failed: {e}")
@@ -167,8 +166,8 @@ class TodoService:
                         "user_id": todo.owner_id,
                         "task_id": todo.id,
                         "title": todo.title,
-                        "timestamp": todo.updated_at.isoformat()
-                    }
+                        "timestamp": todo.updated_at.isoformat(),
+                    },
                 )
             except Exception as e:
                 logger.error(f"RabbitMQ publish failed: {e}")

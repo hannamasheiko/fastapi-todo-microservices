@@ -2,12 +2,12 @@ from todo_service.app.security.security import (
     verify_password,
     get_password_hash,
     create_access_token,
-    decode_token
+    decode_token,
 )
 
 __all__ = [
     "verify_password",
     "get_password_hash",
     "create_access_token",
-    "decode_token"
+    "decode_token",
 ]

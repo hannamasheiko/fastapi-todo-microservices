@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from todo_service.app.config import settings
 from todo_service.app.models import TodoItem, User
 
-
 logger = logging.getLogger(__name__)
 
 

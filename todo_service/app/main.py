@@ -9,7 +9,6 @@ from todo_service.app.routes import api_router
 from todo_service.app.services.cache_service import cache_service
 from todo_service.app.services.rabbitmq_producer import producer
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -94,6 +93,7 @@ async def cache_stats():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "todo_service.app.main:app",
         host=settings.api_host,

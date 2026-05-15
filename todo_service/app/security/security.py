@@ -10,10 +10,7 @@ logger = logging.getLogger(__name__)
 
 # ==================== PASSWORD HASHING ====================
 
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto"
-)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -28,10 +25,8 @@ def get_password_hash(password: str) -> str:
 
 # ==================== JWT TOKENS ====================
 
-def create_access_token(
-        data: dict,
-        expires_delta: Optional[timedelta] = None
-) -> str:
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Створюємо JWT токен"""
     to_encode = data.copy()
 
@@ -45,9 +40,7 @@ def create_access_token(
     to_encode.update({"exp": expire})
 
     encoded_jwt = jwt.encode(
-        to_encode,
-        settings.secret_key,
-        algorithm=settings.algorithm
+        to_encode, settings.secret_key, algorithm=settings.algorithm
     )
 
     return encoded_jwt
@@ -57,9 +50,7 @@ def decode_token(token: str) -> Optional[TokenData]:
     """Декодуємо JWT токен"""
     try:
         payload = jwt.decode(
-            token,
-            settings.secret_key,
-            algorithms=[settings.algorithm]
+            token, settings.secret_key, algorithms=[settings.algorithm]
         )
         username: str | None = payload.get("sub")
         if username is None:

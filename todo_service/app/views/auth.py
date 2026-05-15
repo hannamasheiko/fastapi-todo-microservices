@@ -9,7 +9,6 @@ from todo_service.app.schemas import Token, UserCreate, UserInDB
 from todo_service.app.security import create_access_token
 from todo_service.app.services import UserService
 
-
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 

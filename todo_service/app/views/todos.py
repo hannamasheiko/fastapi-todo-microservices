@@ -8,7 +8,6 @@ from todo_service.app.schemas import TodoItemCreate, TodoItemInDB, TodoItemUpdat
 from todo_service.app.services import TodoService
 from todo_service.app.services.analytics_client import sync_user_analytics
 
-
 router = APIRouter(prefix="/todos", tags=["Todos"])
 
 
