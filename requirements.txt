@@ -44,3 +44,4 @@ asyncpg==0.31.0
 aiosqlite==0.22.1
 greenlet==3.5.0
 aio-pika==9.6.2
+openai==2.43.0
