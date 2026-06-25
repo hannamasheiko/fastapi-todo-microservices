@@ -106,6 +106,25 @@ services:
         condition: service_healthy
     command: uvicorn todo_service.app.main:app --host 0.0.0.0 --port 8000
 
+  ai_service:
+    build:
+      context: .
+      dockerfile: ai_service/Dockerfile
+    container_name: ai-api
+    ports:
+      - "8003:8000"
+    env_file:
+      - ./ai_service/.env
+    environment:
+      AI_SERVICE_NAME: ai_service
+      AI_SERVICE_HOST: 0.0.0.0
+      AI_SERVICE_PORT: 8000
+      DEBUG: "True"
+      TODO_SERVICE_URL: http://todo_api:8000
+    depends_on:
+      - todo_api
+    command: uvicorn ai_service.app.main:app --host 0.0.0.0 --port 8000
+
   notification_service:
     build:
       context: .
