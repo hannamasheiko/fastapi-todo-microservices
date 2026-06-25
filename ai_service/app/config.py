@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     ai_service_port: int = 8003
     debug: bool = False
 
+    todo_service_url: str = "http://127.0.0.1:8000"
+
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
         extra="ignore",
