@@ -1,6 +1,6 @@
 # FastAPI Microservices Todo Project
 
-Невеликий бекенд-проєкт із мікросервісною архітектурою, побудований на FastAPI з використанням PostgreSQL, Redis та RabbitMQ, Docker та Alembic.
+Невеликий бекенд-проєкт із мікросервісною архітектурою, побудований на FastAPI з використанням PostgreSQL, Redis та RabbitMQ, Docker, Alembic та OpenAI Responses API.
 
 У проєкті реалізовано:
 - REST API
@@ -8,18 +8,23 @@
 - кешування (Redis)
 - взаємодію між сервісами (RabbitMQ)
 - базову мікросервісну архітектуру 
+- AI Service для парсингу задач із natural language input
+- інтеграцію з OpenAI Responses API
+- structured output через Pydantic-схеми
+- створення задач через AI Service з передачею в Todo Service
 - тестування API (pytest)
 - міграції бази даних (Alembic)
 
 ## Архітектура
 
-Система побудована у monorepo microservices-style структурі та складається з трьох FastAPI-сервісів:
+Система побудована у monorepo microservices-style структурі та складається з чотирьох FastAPI-сервісів:
 
-| Сервіс | Порт | Відповідальність | База даних |
-|---|---:|---|---|
-| Todo Service | 8000 | Користувачі, JWT-авторизація, CRUD для задач, кешування, публікація подій | `todo_db` |
-| Analytics Service | 8001 | Збереження агрегованої статистики по задачах користувача | `analytics_db` |
-| Notification Service | 8002 | Обробка RabbitMQ-подій, збереження та отримання повідомлень користувача | `notification_db` |
+| Сервіс | Порт | Відповідальність                                                                                | База даних |
+|---|---:|-------------------------------------------------------------------------------------------------|---|
+| Todo Service | 8000 | Користувачі, JWT-авторизація, CRUD для задач, кешування, публікація подій                       | `todo_db` |
+| Analytics Service | 8001 | Збереження агрегованої статистики по задачах користувача                                        | `analytics_db` |
+| Notification Service | 8002 | Обробка RabbitMQ-подій, збереження та отримання повідомлень користувача                         | `notification_db` |
+|AI Service | 8003 | Парсинг natural language задач через OpenAI Responses API та створення задач через Todo Service | — |
 
 Додаткова інфраструктура:
 
@@ -34,6 +39,7 @@
 ## Технології
 
 - **FastAPI**
+- **Pydantic**
 - **SQLAlchemy**
 - **PostgreSQL**
 - **Redis**
@@ -42,6 +48,7 @@
 - **Alembic (міграції)**
 - **JWT (авторизація)**
 - **httpx (міжсервісні запити)**
+- **OpenAI Responses API**
 - **pytest**
 
 ---
@@ -81,6 +88,21 @@
 - Обробка RabbitMQ-подій через consumer
 - Створення повідомлень на основі подій `task:created` і `task:completed`
 
+---
+
+### AI Service
+- Приймає текст задачі природною мовою(natural language input)
+- Формує structured output через Pydantic-схему
+- Виділяє `title`, `description`, `completed`, `priority`
+- Визначає priority за правилами:
+  - `0` — low priority
+  - `1` — medium priority
+  - `2` — high priority
+- Зберігає мову користувача у `title` та `description`
+- Може тільки розпарсити задачу
+- Може одразу створити задачу в Todo Service
+- Передає JWT Authorization header у Todo Service
+- Не має власної бази даних
 
 ## Основний флоу
 
@@ -93,6 +115,16 @@
 4. notification_service обробляє події з RabbitMQ і зберігає повідомлення в `notification_db`
 5. analytics_service зберігає та віддає агреговану статистику користувача з `analytics_db`
 6. Користувач може отримати свої задачі, статистику та повідомлення через відповідні API endpoint-и.
+
+Окремий AI-flow для створення задачі з natural language input:
+
+1. Користувач логіниться у Todo Service і отримує JWT
+2. Користувач надсилає текст задачі в AI Service
+3. AI Service парсить текст через OpenAI Responses API
+4. AI Service формує payload, сумісний із `TodoItemCreate`
+5. AI Service передає цей payload у Todo Service разом із JWT Authorization header
+6. Todo Service створює задачу в `todo_db`
+7. AI Service повертає створену задачу користувачу
 
 ## Запуск
 
@@ -108,10 +140,15 @@
 
 `cp notification_service/.env.example notification_service/.env`
 
+`cp ai_service/.env.example ai_service/.env`
+
 Після цього відредагуй значення у .env під своє локальне середовище.
 
 > `docker-compose-full.yml` містить development-значення для локального запуску.
 > Для реального середовища секрети, зокрема `SECRET_KEY`, потрібно передавати через environment variables.
+> Для AI Service потрібно вказати OpenAI API key та модель у `ai_service/.env`:
+      `OPENAI_API_KEY=your_openai_api_key_here`
+      `OPENAI_MODEL=gpt-5-nano`
 
 ### Через Docker
 
@@ -126,6 +163,7 @@
 - `uvicorn todo_service.app.main:app --reload --port 8000`
 - `uvicorn analytics_service.app.main:app --reload --port 8001`
 - `uvicorn notification_service.app.main:app --reload --port 8002`
+- `uvicorn ai_service.app.main:app --reload --port 8003`
 
 ### Міграції
 
@@ -187,6 +225,15 @@
 - отримання збережених повідомлень користувача
 - фільтрація повідомлень за `user_id`
 
+#### AI Service
+
+Перевіряється:
+
+- успішний парсинг natural language task
+- validation error для невалідного input
+- 401 для створення задачі без Authorization header
+- успішний flow створення задачі через mocked task parser і mocked Todo Service client
+
 
 Запуск усіх тестів:
 
@@ -199,3 +246,4 @@ Swagger UI доступний окремо для кожного сервісу:
 - Todo Service: http://127.0.0.1:8000/docs
 - Analytics Service: http://127.0.0.1:8001/docs
 - Notification Service: http://127.0.0.1:8002/docs
+- AI Service: http://127.0.0.1:8003/docs
